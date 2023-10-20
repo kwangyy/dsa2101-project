@@ -68,27 +68,27 @@ wcmatches_home_better <- wcmatches_tidy %>%
                          filter(home_score > away_score) %>%
                          select(home_team) %>%
                          group_by(home_team) %>%
-                         summarize(total_home_points = n()) %>%
+                         summarize(total_home_points = n() * 3) %>%
                          rename(team = home_team)
 
 wcmatches_away_better <- wcmatches_tidy %>%
                          filter(away_score > home_score) %>%
                          select(away_team) %>%
                          group_by(away_team) %>%
-                         summarize(total_away_points = n()) %>%
+                         summarize(total_away_points = n() * 3) %>%
                          rename(team = away_team)
 
 wcmatches_draw_games_1 <- wcmatches_tidy %>%
                           filter(home_score == away_score) %>%
                           select(home_team) %>%
                           group_by(home_team) %>%
-                          summarize(home_draw_points = n() * 0.5)
+                          summarize(home_draw_points = n())
 
 wcmatches_draw_games_2 <- wcmatches_tidy %>%
                           filter(home_score == away_score) %>%
                           select(away_team) %>%
                           group_by(away_team) %>%
-                          summarize(away_draw_points = n() * 0.5)
+                          summarize(away_draw_points = n())
 
 wcmatches_draw <- wcmatches_draw_games_1 %>%
                   full_join(wcmatches_draw_games_2, by = c("home_team" = "away_team")) %>%
