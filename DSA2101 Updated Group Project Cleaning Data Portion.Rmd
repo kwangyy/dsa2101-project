@@ -1,0 +1,122 @@
+---
+title: "Group Project Preparation"
+author: "World Cup Finals Group"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## World Cup Dataset 
+
+## Introduction
+The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two spreadsheets. The wcmatches spreadsheet contains every football match played in the World Cup, with some columns like which year, which team claimed victory, and what the win condition was. The worldcups spreadsheet contains the winners and has some dataset features like winners, games, goals_scored and more.
+
+## Data cleaning and summary
+Firstly, we prepare the two datasets using the readr package.
+
+```{r Reading Data}
+library(readr)
+
+root_url <- 'https://raw.githubusercontent.com/'
+intermediate <- 'rfordatascience/tidytuesday/master/data/2022/2022-11-29/'
+
+wcmatches <- read_csv(paste0(root_url, intermediate, 'wcmatches.csv'))
+worldcups <- read_csv(paste0(root_url, intermediate, 'worldcups.csv'))
+```
+
+After that, we will do some cleaning with the two datasets. 
+For the worldcups dataset, we first pivot the data longer so that we are able to condense the winner to fourth columns to a column called position_status to make it cleaner. After that, we change "USA" to "United States" to make it consistent with the wcmatches dataset, and then we add in a new feature called continent for our visualisation later.
+
+For the wcmatches dataset, we rename some of the columns, namely stage_status from stage and win_outcome from outcome. After that, we mutate the stage_status such that if the datapoint consists of "Group", we convert it to "Group Stage" and if the datapoint equals "Final Round", we convert it to "Finals" to make it cleaner. We remove the date because we already have the month and year, and we expand the win_outcome column to make it more clear on what H, D and A are. After which, we calculate the score difference, which is the difference in the scoreline, and we fill the win_conditions column with Nil before extracting two more features from the win_conditions column, namely the after_extra_time and penalties column. 
+
+These are all in preparation to answer the question - what factors affect the performance of countries in the World Cup? 
+
+```{r Data Cleaning}
+library(tidyverse)
+library(stringr)
+
+worldcups_tidy <- worldcups %>%
+                  pivot_longer(winner:fourth, names_to = "position_status", values_to = "country_name") %>%
+                  rename(host_country = host) %>%
+                  mutate(host_country = ifelse(host_country == "USA", "United States", host_country), 
+                         country_name = ifelse(country_name == "USA", "United States", country_name)) %>%
+                  mutate(continent = case_when(
+                         host_country %in% c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States") ~ "Americas", 
+                         host_country %in% c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain") ~ "Europe",
+                         host_country %in% c("South Africa", "Russia", "Japan, South Korea") ~ "Rest Of World")) 
+                  
+
+wcmatches_tidy <- wcmatches %>%
+                  rename(stage_status = stage, win_outcome = outcome) %>%
+                  mutate(stage_status = ifelse(str_detect(stage_status, "Group"), "Group Stage", stage_status), 
+                         stage_status = ifelse(stage_status == "Final Round", "Finals", stage_status)) %>%
+                  select(-date) %>%
+                  mutate(win_outcome = case_when(
+                         win_outcome == "H" ~ "Home",
+                         win_outcome == "D" ~ "Draw",
+                         win_outcome == "A" ~ "Away")) %>%
+                  mutate(score_difference = abs(home_score - away_score), 
+                         win_conditions = replace_na(win_conditions, "Nil"),
+                         after_extra_time = ifelse(str_detect(win_conditions, "AET"), 1, 0), 
+                         penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
+```
+
+```{r}
+library(ggplot2)
+library(forcats)
+
+wcmatches_home_better <- wcmatches_tidy %>%
+                         filter(home_score > away_score) %>%
+                         select(home_team) %>%
+                         group_by(home_team) %>%
+                         summarize(total_home_points = n()) %>%
+                         rename(team = home_team)
+
+wcmatches_away_better <- wcmatches_tidy %>%
+                         filter(away_score > home_score) %>%
+                         select(away_team) %>%
+                         group_by(away_team) %>%
+                         summarize(total_away_points = n()) %>%
+                         rename(team = away_team)
+
+wcmatches_draw_games_1 <- wcmatches_tidy %>%
+                          filter(home_score == away_score) %>%
+                          select(home_team) %>%
+                          group_by(home_team) %>%
+                          summarize(home_draw_points = n() * 0.5)
+
+wcmatches_draw_games_2 <- wcmatches_tidy %>%
+                          filter(home_score == away_score) %>%
+                          select(away_team) %>%
+                          group_by(away_team) %>%
+                          summarize(away_draw_points = n() * 0.5)
+
+wcmatches_draw <- wcmatches_draw_games_1 %>%
+                  full_join(wcmatches_draw_games_2, by = c("home_team" = "away_team")) %>%
+                  mutate(home_draw_points = replace_na(home_draw_points, 0),
+                         away_draw_points = replace_na(away_draw_points, 0),
+                         total_draw_points = home_draw_points + away_draw_points) %>%
+                  rename(team = home_team) %>%
+                  select(team, total_draw_points)
+
+wcmatches_tabulated <- wcmatches_home_better %>%
+                       full_join(wcmatches_away_better, by = "team") %>%
+                       full_join(wcmatches_draw, by = "team") %>%
+                       mutate(total_home_points = replace_na(total_home_points, 0),
+                              total_away_points = replace_na(total_away_points, 0),
+                              total_draw_points = replace_na(total_draw_points, 0), 
+                              final_score = total_home_points + total_away_points + total_draw_points) %>% 
+                       select(team, final_score) %>%
+                       arrange(desc(final_score)) %>%
+                       head(10)
+
+ggplot(wcmatches_tabulated, aes(x = fct_reorder(team, final_score, .desc = TRUE), y = final_score)) + 
+  geom_col(fill = "red") + 
+  labs(x = "Country", y = "Grand Total Score", title = "Top 10 Best Performing Countries In World Cup") + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  geom_text(label = wcmatches_tabulated$final_score, size = 5, position = position_stack(vjust = 0.5))
+```
+
+### DO NOT DELETE THIS
+1. find country with best overall performance --> hypothesize with the next few questions
+2. line plot
+3. scatterplot 
