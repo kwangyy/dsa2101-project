@@ -8,10 +8,10 @@ output: html_document
 ## World Cup Dataset 
 
 ## Introduction
-The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two spreadsheets. The wcmatches spreadsheet contains every football match played in the World Cup, with some columns like which year, which team claimed victory, and what the win condition was. The worldcups spreadsheet contains the winners and has some dataset features like winners, games, goals_scored and more.
+The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two spreadsheets. The `wcmatches.csv` file contains every football match played in the World Cup, with some columns like which year, which team claimed victory, and what the win condition was. The `worldcups.csv` file contains the winners and has some dataset features like winners, games, goals_scored and more.
 
 ## Data cleaning and summary
-Firstly, we prepare the two datasets using the readr package.
+Firstly, we prepare the two datasets using the `readr` package.
 
 ```{r Reading Data}
 library(readr)
@@ -24,11 +24,11 @@ worldcups <- read_csv(paste0(root_url, intermediate, 'worldcups.csv'))
 ```
 
 After that, we will do some cleaning with the two datasets. 
-For the worldcups dataset, we first pivot the data longer so that we are able to condense the winner to fourth columns to a column called position_status to make it cleaner. After that, we change "USA" to "United States" to make it consistent with the wcmatches dataset, and then we add in a new feature called continent for our visualisation later.
+For the `worldcups` dataset, we first pivot the data longer so that we are able to condense the winner to fourth columns to a column called `position_status` to make it cleaner. After that, we change "USA" to "United States" to make it consistent with the `wcmatches` dataset, and then we add in a new feature called continent for our visualisation later.
 
-For the wcmatches dataset, we rename some of the columns, namely stage_status from stage and win_outcome from outcome. After that, we mutate the stage_status such that if the datapoint consists of "Group", we convert it to "Group Stage" and if the datapoint equals "Final Round", we convert it to "Finals" to make it cleaner. We remove the date because we already have the month and year, and we expand the win_outcome column to make it more clear on what H, D and A are. After which, we calculate the score difference, which is the difference in the scoreline, and we fill the win_conditions column with Nil before extracting two more features from the win_conditions column, namely the after_extra_time and penalties column. 
+For the `wcmatches` dataset, we rename some of the columns, namely `stage_status` from `stage` and `win_outcome` from `outcome.` After that, we mutate the `stage_status` such that if the datapoint consists of "Group", we convert it to "Group Stage" and if the datapoint equals "Final Round", we convert it to "Finals" to make it cleaner. We remove the date because we already have the month and year, and we expand the `win_outcome` column to make it more clear on what H, D and A are. After which, we calculate the score difference, which is the difference in the scoreline, and we fill the `win_conditions` column with Nil before extracting two more features from the `win_conditions` column, namely the `after_extra_time` and `penalties` column.
 
-These are all in preparation to answer the question - what factors affect the performance of countries in the World Cup? 
+These are all in preparation to answer the question - what factors affect the performance of countries in the World Cup?
 
 ```{r Data Cleaning}
 library(tidyverse)
@@ -60,6 +60,7 @@ wcmatches_tidy <- wcmatches %>%
                          penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
 ```
 
+Performance based on total points scored in every single match in history
 ```{r}
 library(ggplot2)
 library(forcats)
@@ -115,6 +116,21 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(team, final_score, .desc = TRUE)
   theme(plot.title = element_text(hjust = 0.5)) + 
   geom_text(label = wcmatches_tabulated$final_score, size = 5, position = position_stack(vjust = 0.5))
 ```
+
+
+Performance based on rankings in each world cup (work in progress, I need to think of a good way to do this)
+- average ranking across all world cups attended?
+- categories (winner, 2nd, 3rd, 4th, top8, top16, group stage)?
+```{r}
+
+```
+
+Host country performance
+```{r}
+
+```
+
+
 
 ### DO NOT DELETE THIS
 1. find country with best overall performance --> hypothesize with the next few questions
