@@ -76,11 +76,11 @@ Point Allocation Should be:
   
   Case 2: If Away Score > Home Score before extra time, the Away Team will be allocated 3 points while the Home Team will be allocated 0 points.
   
-  Case 3: If Home Score = Away Score before extra time and Home Team wins the match after extra time, the Home Team will be allocated 3 points while the Away            Team will be allocated 0 points. 
+  Case 3: If Home Score = Away Score before extra time and Home Team wins the match after extra time, the Home Team will be allocated 3 points while the Away Team will be allocated 0 points. 
   
-  Case 4: If Home Score = Away Score before extra time and Away Team wins the match after extra time, the Away Team will be allocated 3 points while the Home            Team will be allocated 0 points. 
+  Case 4: If Home Score = Away Score before extra time and Away Team wins the match after extra time, the Away Team will be allocated 3 points while the Home Team will be allocated 0 points. 
   
-  Case 5: If Home Score = Away Score before extra time and Home Score = Away Score after extra time, we treat the match as a draw and 1 point will be allocated           to both the Home Team and the Away Team. 
+  Case 5: If Home Score = Away Score before extra time and Home Score = Away Score after extra time, we treat the match as a draw and 1 point will be allocated to both the Home Team and the Away Team. 
   
 Sum up all the points for each country in the world cup and plot the overall performance of the top 10 best countries in descending order using a bar graph. 
 This involves data manipulation techniques and joining multiple datasets.
