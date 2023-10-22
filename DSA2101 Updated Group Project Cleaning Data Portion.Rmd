@@ -150,7 +150,8 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(team, final_score, .desc = TRUE)
   geom_col(fill = "red") + 
   labs(x = "Country", y = "Grand Total Score", title = "Top 10 Best Performing Countries In World Cup") + 
   theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_text(label = wcmatches_tabulated$final_score, size = 5, position = position_stack(vjust = 0.5))
+  geom_text(label = wcmatches_tabulated$final_score, size = 5, position = position_stack(vjust = 0.5)) + 
+  theme(axis.text.x = element_text(size = 7))
 ```
 
 
