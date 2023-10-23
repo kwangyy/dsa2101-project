@@ -36,16 +36,24 @@ These are all in preparation to answer the question - what factors affect the pe
 library(tidyverse)
 library(stringr)
 
+americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
+
+europe <- c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain", "West Germany", "Netherlands", "Austria", "Belgium", "Croatia", "Czechoslovakia", "Hungary", "Poland", "Portugal", "Yugoslavia", "Bulgaria", "Soviet Union", "Turkey", "Russia")
+
+others <- c("South Africa", "Japan", "South Korea", "Japan, South Korea")
+
 worldcups_tidy <- worldcups %>%
                   pivot_longer(winner:fourth, names_to = "position_status", values_to = "country_name") %>%
                   rename(host_country = host) %>%
                   mutate(host_country = ifelse(host_country == "USA", "United States", host_country), 
-                         country_name = ifelse(country_name == "USA", "United States", country_name)) %>%
-                  mutate(continent = case_when(
-                         host_country %in% c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States") ~ "Americas", 
-                         host_country %in% c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain") ~ "Europe",
-                         host_country %in% c("South Africa", "Russia", "Japan, South Korea") ~ "Rest Of World")) 
-                  
+                         country_name = ifelse(country_name == "USA", "United States", country_name)) %>% mutate(host_continent = case_when(
+                         host_country %in% americas ~ "Americas", 
+                         host_country %in% europe ~ "Europe",
+                         host_country %in%  others ~ "Rest Of World"), 
+                         country_continent = case_when(
+                         country_name %in% americas ~ "Americas", 
+                         country_name %in% europe ~ "Europe",
+                         country_name %in%  others ~ "Rest Of World")) 
 
 wcmatches_tidy <- wcmatches %>%
                   rename(stage_status = stage, win_outcome = outcome) %>%
