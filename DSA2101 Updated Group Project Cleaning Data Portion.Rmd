@@ -137,12 +137,17 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = tota
 ```
 
 # Alternative: heat map
-```
+```{r}
 library(maps)
 
 world_coordinates = map_data("world") %>%
                     mutate(region = case_when(
                            region == "USA" ~ "United States",
+                           subregion == "Scotland" ~ "Scotland",
+                           subregion == "Great Britain" ~ "England",
+                           subregion == "Isle of Wight" ~ "England",
+                           subregion == "Wales" ~ "Wales",
+                           subregion == "Northern Ireland" ~ "Northern Ireland",
                            .default = region)) %>%
                     select(-subregion)
 
@@ -166,21 +171,20 @@ wcmatches_tabulated_two <- wcmatches_wins %>%
 top_countries_joined = world_coordinates %>%
                        left_join(wcmatches_tabulated_two, by = c("region" = "country"))
 
-plain <- theme(
-  axis.text = element_blank(),
-  axis.line = element_blank(),
-  axis.ticks = element_blank(),
-  panel.border = element_blank(),
-  panel.grid = element_blank(),
-  axis.title = element_blank(),
-  panel.background = element_rect(fill = "white"),
-  plot.title = element_text(hjust = 0.5)
-)
-
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  scale_fill_distiller(palette = "Spectral", direction = -1) +
-  plain
+  scale_fill_distiller(palette = "Spectral", direction = -1, name = "Total Points") +
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+    panel.background = element_rect(fill = "white"),
+    plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Global Distribution of Total Points obtained across World Cups")
+
 ```
 
 
