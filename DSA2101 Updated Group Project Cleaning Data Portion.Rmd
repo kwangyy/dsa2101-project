@@ -137,43 +137,34 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = tota
 ```
 
 # Alternative: heat map
-(Work in progress for this)
-```{r}
+```
 library(maps)
 
 world_coordinates = map_data("world") %>%
-  mutate(region = case_when(
-    region == "USA" ~ "United States",
-    .default = region))
-# I need to think of a way to resolve England and Scotland
-head(world_coordinates, 10)
+                    mutate(region = case_when(
+                           region == "USA" ~ "United States",
+                           .default = region)) %>%
+                    select(-subregion)
 
-# sorry I had to copy over the wcmatches_tabulated data here to tabulate every single country's result.
-# curr_team refers to the modern day country (e.g. west germany and east germany is modern day germany)
-wcmatches_total_pts =
-  wcmatches_home_better %>%
-  full_join(wcmatches_away_better, by = "team") %>%
-  full_join(wcmatches_draw, by = "team") %>%
-  mutate(total_home_points = replace_na(total_home_points, 0),
-         total_away_points = replace_na(total_away_points, 0),
-         total_draw_points = replace_na(total_draw_points, 0),
-         final_score = total_home_points + total_away_points + total_draw_points) %>%
-  select(team, final_score) %>%
-  arrange(desc(final_score)) %>%
-  mutate(curr_team =
-           case_when(
-             team == "West Germany" ~ "Germany",
-             team == "East Germany" ~ "Germany",
-             team == "Soviet Union" ~ "Russia",
-             team == "Yugoslavia" ~ "Serbia",
-             team == "FR Yugoslavia" ~ "Serbia",
-             team == "Czechoslovakia" ~ "Czech Republic",
-             .default = team)) %>%
-  group_by(curr_team) %>%
-  summarise(total_points = sum(final_score))
+wcmatches_tabulated_two <- wcmatches_wins %>%
+                           full_join(wcmatches_draws, by = "country") %>%
+                           mutate(win_points = replace_na(win_points, 0),
+                                  draw_points = replace_na(draw_points, 0),
+                                  total_points = win_points + draw_points) %>% 
+                           select(country, total_points) %>% 
+                           mutate(country = case_when(
+                                  country == "West Germany" ~ "Germany",
+                                  country == "East Germany" ~ "Germany",
+                                  country == "Soviet Union" ~ "Russia",
+                                  country == "Yugoslavia" ~ "Serbia",
+                                  country == "FR Yugoslavia" ~ "Serbia",
+                                  country == "Czechoslovakia" ~ "Czech Republic",
+                                  .default = country)) %>%
+                           group_by(country) %>%
+                           summarise(total_points = sum(total_points))
 
 top_countries_joined = world_coordinates %>%
-  left_join(wcmatches_total_pts, by = c("region" = "curr_team"))
+                       left_join(wcmatches_tabulated_two, by = c("region" = "country"))
 
 plain <- theme(
   axis.text = element_blank(),
@@ -188,9 +179,8 @@ plain <- theme(
 
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  scale_fill_distiller(palette = "RdBu", direction = -1) +
+  scale_fill_distiller(palette = "Spectral", direction = -1) +
   plain
-
 ```
 
 
