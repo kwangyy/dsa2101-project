@@ -71,95 +71,69 @@ wcmatches_tidy <- wcmatches %>%
                          penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
 ```
 
-
 ### Visualisations 
 
-1st Visualisation: 
-**Create a bar plot showcasing the top ten countries in the world cup that have the best overall performance. Include all years**
+1st Visualization: 
 
-**How to Calculate the best overall performance?** 
+**Create a bar plot showcasing the top ten countries in the world cup that have the highest total points for all years**
 
 Point Allocation Should be: 
 
-  Case 1: If Home Score > Away Score before extra time, the Home Team will be allocated 3 points while the Away Team will be allocated 0 points. 
+  Case 1: If Home Score > Away Score, Home Team given 3 points, Away Team given 0 points. 
   
-  Case 2: If Away Score > Home Score before extra time, the Away Team will be allocated 3 points while the Home Team will be allocated 0 points.
+  Case 2: If Away Score > Home Score, Away Team given 3 points, Home Team given 0 points.
   
-  Case 3: If Home Score = Away Score before extra time and Home Team wins the match after extra time, the Home Team will be allocated 3 points while the Away Team will be allocated 0 points. 
+  Case 3: If Home Score = Away Score, match is a draw, 1 point will be allocated to both teams. 
   
-  Case 4: If Home Score = Away Score before extra time and Away Team wins the match after extra time, the Away Team will be allocated 3 points while the Home Team will be allocated 0 points. 
+Note: `after_extra_time` does not affect the victory/loss of the teams. 
   
-  Case 5: If Home Score = Away Score before extra time and Home Score = Away Score after extra time, we treat the match as a draw and 1 point will be allocated to both the Home Team and the Away Team. 
-  
-Sum up all the points for each country in the world cup and plot the overall performance of the top 10 best countries in descending order using a bar graph. 
-This involves data manipulation techniques and joining multiple datasets.
-
 ```{r}
 library(ggplot2)
 library(forcats)
 
-# For Cases 1 and 3, where the Home Score > Away Score. In these cases, we select the Home Teams and count the number of times each country has appeared. Since 3 points will be allocated for each win, we should multiply the number of observations by 3 after the n() function. 
+wcmatches_updated <- wcmatches_tidy %>%
+                     mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
+                     select(home_team, away_team, win_outcome)
 
-wcmatches_home_better <- wcmatches_tidy %>%
-                         filter(home_score > away_score) %>%
-                         select(home_team) %>%
-                         group_by(home_team) %>%
-                         summarize(total_home_points = n() * 3) %>%
-                         rename(team = home_team)
+# Points for home team or away team win matches 
 
-# For Cases 2 and 4, where the Away Score > Home Score. In these cases, we select the Away Teams and count the number of times each country has appeared. Since 3 points will be allocated for each win, we should multiply the number of observations by 3 after the n() function.
+wcmatches_wins <- wcmatches_updated %>%
+                  filter(win_outcome %in% c("Home", "Away")) %>%
+                  mutate(country = ifelse(win_outcome == "Home", home_team, away_team)) %>%
+                  select(country) %>%
+                  group_by(country) %>%
+                  summarise(win_points = 3 * n())
 
-wcmatches_away_better <- wcmatches_tidy %>%
-                         filter(away_score > home_score) %>%
-                         select(away_team) %>%
-                         group_by(away_team) %>%
-                         summarize(total_away_points = n() * 3) %>%
-                         rename(team = away_team)
 
-# For Case 5. These are the cases where Away Score = Home Score even after extra time. In this case, we need to select both the Home Team and the Away Team. I have split the draw matches into two sets, one set containing the Home Team countries and the other set containing the Away Team countries. Calculate the points for the draw matches accordingly. Since only 1 point will be allocated for each draw to each team, we just need to use n(). 
+# Points for draw matches
 
-wcmatches_draw_games_1 <- wcmatches_tidy %>%
-                          filter(home_score == away_score) %>%
-                          select(home_team) %>%
-                          group_by(home_team) %>%
-                          summarize(home_draw_points = n())
+wcmatches_draws <- wcmatches_updated %>%
+                   filter(win_outcome == "Draw") %>%
+                   pivot_longer(home_team:away_team) %>%
+                   rename(country = value) %>%
+                   select(country) %>%
+                   group_by(country) %>%
+                   summarise(draw_points = n())
 
-wcmatches_draw_games_2 <- wcmatches_tidy %>%
-                          filter(home_score == away_score) %>%
-                          select(away_team) %>%
-                          group_by(away_team) %>%
-                          summarize(away_draw_points = n())
+# Join `wc_matches_wins` and `wc_matches_draws` and compute total points for each country. 
 
-# Join the two datasets containing the Home Teams and Away Teams respectively to obtain a dataset that contains the points for each scenerio (where the country is acting as a Home Team and Away Team). We need to use a full_join to join the datasets as we do not want any loss of observations from either dataset. Those observations that are not in one dataset will be denoted by NA when merged, hence need to change the value from NA to 0. Next, create a new variable that sums up the points for the country acting as Home Team and Away Team. 
-
-wcmatches_draw <- wcmatches_draw_games_1 %>%
-                  full_join(wcmatches_draw_games_2, by = c("home_team" = "away_team")) %>%
-                  mutate(home_draw_points = replace_na(home_draw_points, 0),
-                         away_draw_points = replace_na(away_draw_points, 0),
-                         total_draw_points = home_draw_points + away_draw_points) %>%
-                  rename(team = home_team) %>%
-                  select(team, total_draw_points)
-
-# Afterwards, join the three datasets (points for Home Team Win, points for Away Team Win and points for Draw Matches), again using a full_join to prevent any loss of observations. Similarly, observations that are not in one or more datasets will be denoted by NA when merged, hence need to change the value from NA to 0. Next, create a new variable that sums up the home points, away points and draw points. Use head(10) to filter the top 10 best performing countries after applying the arrange function in descending order of the final score.  
-
-wcmatches_tabulated <- wcmatches_home_better %>%
-                       full_join(wcmatches_away_better, by = "team") %>%
-                       full_join(wcmatches_draw, by = "team") %>%
-                       mutate(total_home_points = replace_na(total_home_points, 0),
-                              total_away_points = replace_na(total_away_points, 0),
-                              total_draw_points = replace_na(total_draw_points, 0), 
-                              final_score = total_home_points + total_away_points + total_draw_points) %>% 
-                       select(team, final_score) %>%
-                       arrange(desc(final_score)) %>%
+wcmatches_tabulated <- wcmatches_wins %>%
+                       full_join(wcmatches_draws, by = "country") %>%
+                       mutate(win_points = replace_na(win_points, 0),
+                              draw_points = replace_na(draw_points, 0),
+                              total_points = win_points + draw_points) %>% 
+                       select(country, total_points) %>%
+                       arrange(desc(total_points)) %>%
                        head(10)
 
 # Create a bar plot
-ggplot(wcmatches_tabulated, aes(x = fct_reorder(team, final_score, .desc = TRUE), y = final_score)) + 
-  geom_col(fill = "red") + 
-  labs(x = "Country", y = "Grand Total Score", title = "Top 10 Best Performing Countries In World Cup") + 
+
+ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = total_points)) + 
+  geom_col(fill = "#FF9999") +
+  coord_flip() + 
+  labs(x = "Country", y = "Total Points", title = "Top 10 Best Performing Countries In World Cup") + 
   theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_text(label = wcmatches_tabulated$final_score, size = 5, position = position_stack(vjust = 0.5)) + 
-  theme(axis.text.x = element_text(size = 7))
+  geom_text(label = wcmatches_tabulated$total_points, size = 5, position = position_stack(vjust = 0.5))
 ```
 
 # Alternative: heat map
