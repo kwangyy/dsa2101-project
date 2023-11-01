@@ -88,17 +88,19 @@ Point Allocation Should be:
   
   Case 3: If Home Score = Away Score, match is a draw, 1 point will be allocated to both teams. 
   
-Note: `after_extra_time` does not affect the victory/loss of the teams. 
+Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered draw.
   
 ```{r}
 library(ggplot2)
 library(forcats)
 
+# Firstly, ensure that all the rows of the `wcmatches_tidy` dataset where penalties are required are set to Draw in the `win_outcome` column of the dataset. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. This is stored in a new dataset called `wcmatches_updated`. 
+
 wcmatches_updated <- wcmatches_tidy %>%
                      mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
                      select(home_team, away_team, win_outcome)
 
-# Points for home team or away team win matches 
+# Next, subset the `wcmatches_updated` dataset to filter for observations that either the home team or the away team wins. The teams that win the matches are to be kept. Count the number of times each team is present in the dataset and subsequently, multiply the count of each team by 3 to get the win points. Store this in a dataset called `wcmatches_wins`.
 
 wcmatches_wins <- wcmatches_updated %>%
                   filter(win_outcome %in% c("Home", "Away")) %>%
@@ -107,8 +109,7 @@ wcmatches_wins <- wcmatches_updated %>%
                   group_by(country) %>%
                   summarise(win_points = 3 * n())
 
-
-# Points for draw matches
+# Similarly, subset the `wcmatches_updated` dataset to filter for observations where the matches have a draw result. Both the home team and the away team are to be kept. Combine the home and away teams in a single column and count the number of times each team is present in the dataset. Draw points is equal to the count. Store this in a dataset called `wcmatches_draws`.
 
 wcmatches_draws <- wcmatches_updated %>%
                    filter(win_outcome == "Draw") %>%
@@ -118,7 +119,7 @@ wcmatches_draws <- wcmatches_updated %>%
                    group_by(country) %>%
                    summarise(draw_points = n())
 
-# Join `wc_matches_wins` and `wc_matches_draws` and compute total points for each country. 
+# Afterwards, join `wcmatches_wins` and `wcmatches_draws` and ensure that all teams are contained in the merged dataset. Certain entries in the merged dataset contain NA values as some countries are not found in either `wcmatches_draws` or `wcmatches_wins`. The NA values should be replaced by 0. Compute the total points for each country by summing the draw points and win points. Store it in a new dataset called `wcmatches_tabulated`. 
 
 wcmatches_tabulated <- wcmatches_wins %>%
                        full_join(wcmatches_draws, by = "country") %>%
@@ -129,7 +130,7 @@ wcmatches_tabulated <- wcmatches_wins %>%
                        arrange(desc(total_points)) %>%
                        head(10)
 
-# Create a bar plot
+# Lastly, use ggplot to generate the bar plot that showcase the top 10 countries that have the highest number of total points arranged in descending order in a horizontal format. Rename the labels accordingly. 
 
 ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = total_points)) + 
   geom_col(fill = "#FF9999") +
