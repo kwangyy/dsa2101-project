@@ -18,6 +18,7 @@ Firstly, we prepare the two datasets using the `readr` package.
 ```{r Reading Data}
 library(readr)
 
+# we read from tidytuesday
 root_url <- 'https://raw.githubusercontent.com/'
 intermediate <- 'rfordatascience/tidytuesday/master/data/2022/2022-11-29/'
 
@@ -26,9 +27,10 @@ worldcups <- read_csv(paste0(root_url, intermediate, 'worldcups.csv'))
 ```
 
 After that, we will do some cleaning with the two datasets. 
-For the `worldcups` dataset, we first pivot the data longer so that we are able to condense the winner to fourth columns to a column called `position_status` to make it cleaner. After that, we change "USA" to "United States" to make it consistent with the `wcmatches` dataset, and then we add in a new feature called continent for our visualisation later.
 
-For the `wcmatches` dataset, we rename some of the columns, namely `stage_status` from `stage` and `win_outcome` from `outcome.` After that, we mutate the `stage_status` such that if the datapoint consists of "Group", we convert it to "Group Stage" and if the datapoint equals "Final Round", we convert it to "Finals" to make it cleaner. We remove the date because we already have the month and year, and we expand the `win_outcome` column to make it more clear on what H, D and A are. After which, we calculate the score difference, which is the difference in the scoreline, and we fill the `win_conditions` column with Nil before extracting two more features from the `win_conditions` column, namely the `after_extra_time` and `penalties` column.
+In data preparation for the worldcups dataset, we restructured it by pivoting the data longer, condensing the "winner" columns to "fourth" columns to create a cleaner "position_status" column. We also standardised "USA" to "United States," and introduced a new "continent" feature for future visualization.
+
+For the wcmatches dataset, columns were renamed, clarifying "stage_status" from "stage" and "win_outcome" from "outcome." We refined the "stage_status" further, converting "Group" to "Group Stage" and "Final Round" to "Finals" for clarity. Redundant date information was removed, and the "win_outcome" column was expanded for clear representation of "H" (Home Win), "D" (Draw), and "A" (Away Win). We calculated the score difference, filled the "win_conditions" column with "Nil," and extracted two features, "after_extra_time" and "penalties."
 
 These are all in preparation to answer the question - what factors affect the performance of countries in the World Cup?
 
@@ -36,6 +38,7 @@ These are all in preparation to answer the question - what factors affect the pe
 library(tidyverse)
 library(stringr)
 
+# American countries within the datasets 
 americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
 
 europe <- c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain", "West Germany", "Netherlands", "Austria", "Belgium", "Croatia", "Czechoslovakia", "Hungary", "Poland", "Portugal", "Yugoslavia", "Bulgaria", "Soviet Union", "Turkey", "Russia")
