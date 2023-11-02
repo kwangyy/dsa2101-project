@@ -157,6 +157,9 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = tota
 **Create a heat map showcasing the total points across all world cups for every country**
 
 ```{r}
+
+# First, the information of the coordinates of the countries in terms of longitude and latitude are needed to plot the heatmap. The coordinates can be obtained by using the `map_data("world")` command. Certain subregions in the dataset are not properly separated into the respective regions (eg. Scotland, Great Britain, Isle of Wight and Wales are all under UK in the region column of the dataset). However, these countries should be differentiated by region.  
+
 world_coordinates = map_data("world") %>%
                     mutate(region = case_when(
                            region == "USA" ~ "United States",
@@ -167,6 +170,8 @@ world_coordinates = map_data("world") %>%
                            subregion == "Northern Ireland" ~ "Northern Ireland",
                            .default = region)) %>%
                     select(-subregion)
+
+# Join `wcmatches_wins` and `wcmatches_draws` and ensure that all teams are contained in the merged dataset. Certain entries in the merged dataset contain NA values as some teams are not found in either `wcmatches_draws` or `wcmatches_wins`. The NA values should be replaced by 0. Compute the total points for each team by summing the draw points and win points. Certain teams such as Yugoslavia and Czechoslovakia should be renamed to their respective regions in order to merge with the `world_coordinates` dataset. Store it in a new dataset called `wcmatches_tabulated_two`.
 
 wcmatches_tabulated_two <- wcmatches_wins %>%
                            full_join(wcmatches_draws, by = "country") %>%
@@ -185,12 +190,17 @@ wcmatches_tabulated_two <- wcmatches_wins %>%
                            group_by(country) %>%
                            summarise(total_points = sum(total_points))
 
+# Next, join the `world_coordinates` dataset with the `wcmatches_tabulated_two` dataset by the name of the region. All the country names in the `wcmatches_tabulated_two` exist in the region column of the `world_coordinates` dataset. 
+
 top_countries_joined = world_coordinates %>%
                        left_join(wcmatches_tabulated_two, by = c("region" = "country"))
 
+# Lastly, use ggplot to generate the heatmap that showcase the total number of points various countries earned from the world cup matches over the years. Countries that are not involved in the world cup have a score of NA in the `top_countries_joined` dataset and hence, encoded as a grey shade in the heatmap. The viridis package is being used for users who are color-blind to observe the colours distributed across the heatmap well. 
+
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  scale_fill_binned(type = "viridis", direction = -1, name = "Total Points") +
+  labs(title = "Global Distribution of Total Points obtained across World Cups") + 
+  scale_fill_binned(type = "viridis", direction = -1, breaks = c(5, 10, 20, 50, 75, 100, 125, 150, 175, 200), name = "Total Points") +
   theme(axis.text = element_blank(),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
@@ -199,7 +209,6 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
         axis.title = element_blank(),
         panel.background = element_rect(fill = "white"),
         plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Global Distribution of Total Points obtained across World Cups") +
   theme_map()
 
 ```
