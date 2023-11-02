@@ -5,19 +5,36 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-## World Cup Dataset 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## World Cup Dataset
+
+```{r}
+library(readr)
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(forcats)
+library(maps)
+library(ggthemes)
+```
 
 ### Introduction
 
-The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two spreadsheets. The `wcmatches.csv` file contains every football match played in the World Cup, with some columns like which year, which team claimed victory, and what the win condition was. The `worldcups.csv` file contains the winners and has some dataset features like winners, games, goals_scored and more.
+The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two `csv` files: `wcmatches.csv` and `worldcups.csv`.
+
+1. The `wcmatches.csv` file contains every football match played in the World Cup, with some columns like which year, which team claimed victory, and what the win condition was.
+
+2. The `worldcups.csv` file contains the winners and has some dataset features like winners, games, goals_scored and more.
+
 
 ### Data cleaning and summary
 
 Firstly, we prepare the two datasets using the `readr` package.
 
 ```{r Reading Data}
-library(readr)
-
 # we read from tidytuesday
 root_url <- 'https://raw.githubusercontent.com/'
 intermediate <- 'rfordatascience/tidytuesday/master/data/2022/2022-11-29/'
@@ -28,16 +45,13 @@ worldcups <- read_csv(paste0(root_url, intermediate, 'worldcups.csv'))
 
 After that, we will do some cleaning with the two datasets. 
 
-In data preparation for the worldcups dataset, we restructured it by pivoting the data longer, condensing the "winner" columns to "fourth" columns to create a cleaner "position_status" column. We also standardised "USA" to "United States," and introduced a new "continent" feature for future visualization.
+In data preparation for the `worldcups` dataset, we restructured it by pivoting the data longer, condensing the `winner` columns to `fourth` columns to create a cleaner `position_status` column. We also standardised `USA` to `United States`, and introduced a new `continent` feature for future visualization.
 
-For the wcmatches dataset, columns were renamed, clarifying "stage_status" from "stage" and "win_outcome" from "outcome." We refined the "stage_status" further, converting "Group" to "Group Stage" and "Final Round" to "Finals" for clarity. Redundant date information was removed, and the "win_outcome" column was expanded for clear representation of "H" (Home Win), "D" (Draw), and "A" (Away Win). We calculated the score difference, filled the "win_conditions" column with "Nil," and extracted two features, "after_extra_time" and "penalties."
+For the `wcmatches` dataset, columns were renamed, clarifying `stage_status` from `stage` and `win_outcome` from `outcome`. We refined the `stage_status` further, converting `Group` to `Group Stage` and "Final Round" to "Finals" for clarity. Redundant date information was removed, and the "win_outcome" column was expanded for clear representation of "H" (Home Win), "D" (Draw), and "A" (Away Win). We calculated the score difference, filled the "win_conditions" column with "Nil," and extracted two features, "after_extra_time" and "penalties."
 
-These are all in preparation to answer the question - what factors affect the performance of countries in the World Cup?
+These are all in preparation to answer the question: **What factors affect the performance of countries in the World Cup?**
 
 ```{r Data Cleaning}
-library(tidyverse)
-library(stringr)
-
 # American countries within the datasets 
 americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
 
@@ -91,8 +105,6 @@ Point Allocation Should be:
 Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered draw.
   
 ```{r}
-library(ggplot2)
-library(forcats)
 
 # Firstly, ensure that all the rows of the `wcmatches_tidy` dataset where penalties are required are set to Draw in the `win_outcome` column of the dataset. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. This is stored in a new dataset called `wcmatches_updated`. 
 
@@ -140,10 +152,11 @@ ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = tota
   geom_text(label = wcmatches_tabulated$total_points, size = 5, position = position_stack(vjust = 0.5))
 ```
 
-# Alternative: heat map
-```{r}
-library(maps)
+2nd Visualization:
 
+**Create a heat map showcasing the total points across all world cups for every country**
+
+```{r}
 world_coordinates = map_data("world") %>%
                     mutate(region = case_when(
                            region == "USA" ~ "United States",
@@ -177,17 +190,17 @@ top_countries_joined = world_coordinates %>%
 
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  scale_fill_distiller(palette = "Spectral", direction = -1, name = "Total Points") +
-  theme(
-    axis.text = element_blank(),
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    panel.border = element_blank(),
-    panel.grid = element_blank(),
-    axis.title = element_blank(),
-    panel.background = element_rect(fill = "white"),
-    plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Global Distribution of Total Points obtained across World Cups")
+  scale_fill_binned(type = "viridis", direction = -1, name = "Total Points") +
+  theme(axis.text = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Global Distribution of Total Points obtained across World Cups") +
+  theme_map()
 
 ```
 
@@ -211,4 +224,18 @@ Host country performance
 ### DO NOT DELETE THIS
 1. find country with best overall performance --> hypothesize with the next few questions
 2. line plot
-3. scatterplot 
+3. scatterplot
+
+
+
+### Discussion
+
+
+
+## References
+- R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
+
+
+
+
+
