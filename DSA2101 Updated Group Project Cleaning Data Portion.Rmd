@@ -308,31 +308,32 @@ combined_draw_data <- draw_data_home %>%
 Afterwards, join the `combined_draw_data` with the `winning_data` datasets and ensure that all the observations exist in the merged dataset. Similarly, the two datasets need to be joined using multiple columns, including year, stage_status and the name of the winning and home teams. Certain entries in the merged dataset contain NA values as some teams are not found in either `winning_data` or `combined_draw_data`. The NA values should be replaced by 0. Compute the grand total number of points for each team (grand_total_points column). Lastly, we need to add a new column to get the continents of the teams (Americas, Europe or Rest Of World). Store this in a dataset called `final_dataset`.
 
 ```{r Multiple Bar Chart 5}
-final_dataset <- winning_data %>%
-                 full_join(combined_draw_data,
-                           by = c("year" = "year",
-                                  "stage_status" = "stage_status",
-                                  "winning_team" = "home_team")) %>%
-                 mutate(win_points = replace_na(win_points, 0),
-                        draw_points = replace_na(draw_points, 0),
-                        grand_total_points = win_points + draw_points) %>%
-                 select(year, winning_team, grand_total_points) %>%
-                 mutate(continent = case_when(
-                   winning_team %in% c("Argentina", "Brazil", "Costa Rica", "Uruguay", "United States",
-                                       "Colombia", "Mexico", "Jamaica", "Paraguay", "Ecuador", "Peru",
-                                       "Chile", "Honduras", "Bolivia", "Trinidad and Tobago") ~ "Americas",
-                   winning_team %in% c("Austria", "Belgium", "Croatia", "England", "Italy", "Romania",
-                                       "Scotland", "Spain", "West Germany", "Yugoslavia", "Czechoslovakia",
-                                       "Germany", "Netherlands", "Norway", "Republic of Ireland", "Sweden",
-                                       "Switzerland", "Denmark", "FR Yugoslavia", "France", "Serbia",
-                                       "Poland", "Portugal", "Czech Republic", "Bosnia and Herzegovina",
-                                       "Ukraine", "Slovenia", "Iceland", "Greece", "Soviet Union",
-                                       "Russia", "Bulgaria", "Turkey") ~ "Europe",
-                   winning_team %in% c("Cameroon",  "Nigeria", "Senegal", "Morocco", "Saudi Arabia",
-                                       "Iran", "Japan", "South Africa", "South Korea", "Ivory Coast",
-                                       "Australia", "Ghana", "Tunisia", "Algeria", "Slovakia",
-                                       "New Zealand", "Angola", "Egypt") ~ "Rest Of World"
-                 )) %>%
+final_dataset = winning_data %>%
+                full_join(combined_draw_data,
+                          by = c("year" = "year",
+                                 "stage_status" = "stage_status",
+                                 "winning_team" = "home_team")) %>%
+                mutate(win_points = replace_na(win_points, 0),
+                       draw_points = replace_na(draw_points, 0),
+                       grand_total_points = win_points + draw_points) %>%
+                select(year, winning_team, grand_total_points) %>%
+                mutate(continent = case_when(
+                  winning_team %in% c("Argentina", "Brazil", "Costa Rica", "Uruguay", "United States",
+                                      "Colombia", "Mexico", "Jamaica", "Paraguay", "Ecuador", "Peru",
+                                      "Chile", "Honduras", "Bolivia", "Trinidad and Tobago") ~ "Americas",
+                  winning_team %in% c("Austria", "Belgium", "Croatia", "England", "Italy", "Romania",
+                                      "Scotland", "Spain", "West Germany", "Yugoslavia", "Czechoslovakia",
+                                      "Germany", "Netherlands", "Norway", "Republic of Ireland", "Sweden",
+                                      "Switzerland", "Denmark", "FR Yugoslavia", "France", "Serbia",
+                                      "Poland", "Portugal", "Czech Republic", "Bosnia and Herzegovina",
+                                      "Ukraine", "Slovenia", "Iceland", "Greece", "Soviet Union",
+                                      "Russia", "Bulgaria", "Turkey") ~ "Europe",
+                  winning_team %in% c("Cameroon",  "Nigeria", "Senegal", "Morocco", "Saudi Arabia",
+                                      "Iran", "Japan", "South Africa", "South Korea", "Ivory Coast",
+                                      "Australia", "Ghana", "Tunisia", "Algeria", "Slovakia",
+                                      "New Zealand", "Angola", "Egypt") ~ "Rest Of World")) %>%
+                 mutate(stage_status = factor(stage_status,
+                                              levels = c("Top 4", "Quarterfinals", "Round of 16", "Group Stage"))) %>%
                  group_by(year, stage_status, continent) %>%
                  summarize(score = sum(grand_total_points))
 
@@ -343,8 +344,6 @@ Lastly, we plot the data in the `final_dataset` using ggplot2. Faceting is neede
 ```{r}
 ggplot(final_dataset, aes(x = continent, y = score)) + 
   geom_col(aes(fill = stage_status)) +
-  # I'm not sure how to rearrange the order of the stacking of bars in the following order:
-  # Group stage (bottom), Round of 16, Quarterfinals, Top 4 (top) - will be better and easier to see the difference
   facet_wrap(~ year) +
   labs(title = "Total score for various continents grouped by stage status from 1990 to 2018", x = "Continents", y = "Total score", fill = "Stage Status") + 
   theme(legend.position = "bottom", plot.title = element_text(hjust = 0.5))
