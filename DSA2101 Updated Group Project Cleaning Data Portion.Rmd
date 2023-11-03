@@ -26,6 +26,7 @@ library(ggplot2)
 library(forcats)
 library(maps)
 library(ggthemes)
+library(viridis)
 ```
 
 ## Data cleaning and summary
@@ -210,17 +211,20 @@ Lastly, use ggplot to generate the heatmap that showcase the total number of poi
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
   labs(title = "Global Distribution of Total Points obtained across World Cups") + 
-  scale_fill_binned(type = "viridis", direction = -1, breaks = c(5, 10, 20, 50, 75, 100, 125, 150, 175, 200), name = "Total Points") +
+  scale_fill_viridis(limits = c(0, 250)) + 
   theme(axis.text = element_blank(),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
         panel.border = element_blank(),
         panel.grid = element_blank(),
         axis.title = element_blank(),
-        panel.background = element_rect(fill = "white"),
-        plot.title = element_text(hjust = 0.5)) +
-        borders(database = "world", regions = ".", fill = NA, colour = "black", size = 0.1) + 
-        theme_map()
+        panel.background = element_rect(fill = "white")) +
+  borders(database = "world", regions = ".", fill = NA, colour = "black", size = 0.1) + 
+  theme_map() + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()) + 
+  ylim(-60, 100)
+  
 
 ```
 
@@ -230,23 +234,23 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
 
 Question: 
 
-**Compute the scores of the various teams involved in the world cup. Include world cup matches from 1990 onwards. Group the teams by continents (Americas, Europe and Rest Of World) and differentiate the scores according to the stage status of the game, i.e. Group Stage, Round of 16, Quarterfinals and Top 4 (which comprises Semifinals, 3rd Place and Final).**
+**Compute the scores of the various teams involved in the world cup. Include world cup matches from 1986 onwards. Group the teams by continents (Americas, Europe and Rest Of World) and differentiate the scores according to the stage status of the game, i.e. Group Stage, Round of 16, Quarterfinals and Top 4 (which comprises Semifinals, 3rd Place and Final).**
 
 Solution: 
 
 This question can be solved using multiple bar graphs through faceting. From the question, there will be 4 variables. 
 1st Variable: Continents (Americas, Europe and Rest Of World)
 2nd Variable: Stage Status (Group Stage, Round of 16 and Top 4)
-3rd Variable: Year (1990, 1994, 1998, 2002, 2006, 2010, 2014, 2018)
+3rd Variable: Year (1986, 1990, 1994, 1998, 2002, 2006, 2010, 2014, 2018)
 4th Variable: Total score for the teams 
 
 ### Multiple bar charts 
 
-First, filter for the world cup matches with year 1990 onwards and select the relevant columns (`year`, `stage_status`, `winning_team`). In the first dataset, only observations where the outcome of the matches are not draws are kept. Only the winning team is selected for point allocation later on. Before the point allocation, we must change the respective stage status (`Quarterfinals`, `Semifinals`, `Third place`, `Final`) to "Top 4". Group the dataset by both the year and the stage status (since both are considered variables) and allocate the points for the winning teams accordingly. Store this in a dataset called `winning_data`.
+First, filter for the world cup matches with year 1986 onwards and select the relevant columns (`year`, `stage_status`, `winning_team`). In the first dataset, only observations where the outcome of the matches are not draws are kept. Only the winning team is selected for point allocation later on. Before the point allocation, we must change the respective stage status (`Quarterfinals`, `Semifinals`, `Third place`, `Final`) to "Top 4". Group the dataset by both the year and the stage status (since both are considered variables) and allocate the points for the winning teams accordingly. Store this in a dataset called `winning_data`.
 
 ```{r Multiple Bar Chart 1}
 winning_data <- wcmatches_tidy %>%
-                filter(year >= 1990, win_outcome != "Draw") %>%
+                filter(year >= 1986, win_outcome != "Draw") %>%
                 select(year, winning_team, stage_status) %>%
                 mutate(stage_status = ifelse(
                   stage_status %in% c("Semifinals", "Final", "Third place"), "Top 4",
@@ -259,11 +263,11 @@ winning_data <- wcmatches_tidy %>%
 ```
 
 
-Repeat the same process for the world cup matches that have draws. In this case, we select both the home team and the away team as points will be allocated to both teams. Store the filtered and tidied dataset where year of the matches are from 1990 onwards and the outcome of the matches is draw in a dataset called `draw_data`.
+Repeat the same process for the world cup matches that have draws. In this case, we select both the home team and the away team as points will be allocated to both teams. Store the filtered and tidied dataset where year of the matches are from 1986 onwards and the outcome of the matches is draw in a dataset called `draw_data`.
 
 ```{r Multiple Bar Chart 2}
 draw_data <- wcmatches_tidy %>%
-             filter(year >= 1990, win_outcome == "Draw") %>%
+             filter(year >= 1986, win_outcome == "Draw") %>%
              select(year, stage_status, home_team, away_team)
 ```
 
@@ -327,7 +331,7 @@ final_dataset = winning_data %>%
                                       "Switzerland", "Denmark", "FR Yugoslavia", "France", "Serbia",
                                       "Poland", "Portugal", "Czech Republic", "Bosnia and Herzegovina",
                                       "Ukraine", "Slovenia", "Iceland", "Greece", "Soviet Union",
-                                      "Russia", "Bulgaria", "Turkey") ~ "Europe",
+                                      "Russia", "Bulgaria", "Turkey", "Hungary", "Northern Ireland") ~ "Europe",
                   winning_team %in% c("Cameroon",  "Nigeria", "Senegal", "Morocco", "Saudi Arabia",
                                       "Iran", "Japan", "South Africa", "South Korea", "Ivory Coast",
                                       "Australia", "Ghana", "Tunisia", "Algeria", "Slovakia",
@@ -345,7 +349,7 @@ Lastly, we plot the data in the `final_dataset` using ggplot2. Faceting is neede
 ggplot(final_dataset, aes(x = continent, y = score)) + 
   geom_col(aes(fill = stage_status)) +
   facet_wrap(~ year) +
-  labs(title = "Total score for various continents grouped by stage status from 1990 to 2018", x = "Continents", y = "Total score", fill = "Stage Status") + 
+  labs(title = "Total score for various continents grouped by stage status from 1986 to 2018", x = "Continents", y = "Total score", fill = "Stage Status") + 
   theme(legend.position = "bottom", plot.title = element_text(hjust = 0.5))
 
 ```
