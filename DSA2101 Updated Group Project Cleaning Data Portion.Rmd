@@ -230,7 +230,7 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
 
 Question: 
 
-**Compute the scores of the various teams involved in the world cup. Include world cup matches from 1990 onwards. Group the teams by continents (Americas, Europe and Rest Of World) and differentiate the scores according to the stage status of the game. (Group Stage, Round of 16 and Top 4 which comprises Quarterfinals, 3rd Place, Semifinals and Finals).**
+**Compute the scores of the various teams involved in the world cup. Include world cup matches from 1990 onwards. Group the teams by continents (Americas, Europe and Rest Of World) and differentiate the scores according to the stage status of the game, i.e. Group Stage, Round of 16, Quarterfinals and Top 4 (which comprises Semifinals, 3rd Place and Final).**
 
 Solution: 
 
@@ -242,13 +242,16 @@ This question can be solved using multiple bar graphs through faceting. From the
 
 ### Multiple bar charts 
 
-First, filter for the world cup matches with year 1990 onwards and select the relevant columns (`year`, `stage_status`, `winning_team`). In the first dataset, only observations where the outcome of the matches are not draws are kept. Only the winning team is selected for point allocation later on. Before the point allocation, we must change the respective stage status (`Quarterfinals`, `Semifinals`, `Third place`, `Final`) to "Top 4". Group the dataset by both the year and the stage status (since both are considered variables) and allocate the points for the winning teams accordingly. Store this in a dataset called `winning_data`. 
+First, filter for the world cup matches with year 1990 onwards and select the relevant columns (`year`, `stage_status`, `winning_team`). In the first dataset, only observations where the outcome of the matches are not draws are kept. Only the winning team is selected for point allocation later on. Before the point allocation, we must change the respective stage status (`Quarterfinals`, `Semifinals`, `Third place`, `Final`) to "Top 4". Group the dataset by both the year and the stage status (since both are considered variables) and allocate the points for the winning teams accordingly. Store this in a dataset called `winning_data`.
 
 ```{r Multiple Bar Chart 1}
 winning_data <- wcmatches_tidy %>%
                 filter(year >= 1990, win_outcome != "Draw") %>%
                 select(year, winning_team, stage_status) %>%
-                mutate(stage_status = ifelse(stage_status %in% c("Quarterfinals", "Semifinals", "Final", "Third place"), "Top 4", stage_status)) %>%
+                mutate(stage_status = ifelse(
+                  stage_status %in% c("Semifinals", "Final", "Third place"), "Top 4",
+                  stage_status)
+                  ) %>%
                 group_by(year, stage_status) %>%
                 count(winning_team) %>%
                 mutate(win_points = 3 * n) %>%
@@ -257,10 +260,11 @@ winning_data <- wcmatches_tidy %>%
 
 
 Repeat the same process for the world cup matches that have draws. In this case, we select both the home team and the away team as points will be allocated to both teams. Store the filtered and tidied dataset where year of the matches are from 1990 onwards and the outcome of the matches is draw in a dataset called `draw_data`.
+
 ```{r Multiple Bar Chart 2}
 draw_data <- wcmatches_tidy %>%
-             filter(year >= 1990, win_outcome == "Draw", penalties == 0) %>%
-             select(year, stage_status, home_team, away_team) 
+             filter(year >= 1990, win_outcome == "Draw") %>%
+             select(year, stage_status, home_team, away_team)
 ```
 
 
@@ -286,10 +290,18 @@ Join the `draw_data_home` and `draw_data_away` datasets and ensure that all the 
 
 ```{r Multiple Bar Chart 4}
 combined_draw_data <- draw_data_home %>%
-                      full_join(draw_data_away, by = c("year" = "year", "stage_status" = "stage_status", "home_team" = "away_team")) %>%
+                      full_join(draw_data_away,
+                                by = c("year" = "year",
+                                       "stage_status" = "stage_status",
+                                       "home_team" = "away_team")) %>%
                       mutate(home_points = replace_na(home_points, 0), 
                              away_points = replace_na(away_points, 0), 
                              draw_points = home_points + away_points) %>%
+                      mutate(stage_status = ifelse(
+                        stage_status %in% c("Semifinals", "Final", "Third place"), "Top 4",
+                        stage_status)) %>%
+                      arrange(year, match(stage_status,
+                                          c("Group Stage", "Round of 16", "Quarterfinals", "Top 4"))) %>%
                       select(year, home_team, draw_points)
 ```
 
@@ -307,18 +319,18 @@ final_dataset <- winning_data %>%
                  select(year, winning_team, grand_total_points) %>%
                  mutate(continent = case_when(
                    winning_team %in% c("Argentina", "Brazil", "Costa Rica", "Uruguay", "United States",
-                                       "Colombia", "Mexico", "Croatia", "Morocco", "Jamaica", "Paraguay",
-                                       "Ecuador", "Senegal", "Peru", "Greece", "Ivory Coast", "Chile",
-                                       "Honduras", "Bolivia", "Trinidad and Tobago") ~ "Americas",
-                   winning_team %in% c("Austria", "Belgium", "England", "Italy", "Romania", "Scotland",
-                                       "Spain", "West Germany", "Yugoslavia", "Czechoslovakia", "Germany",
-                                       "Netherlands", "Norway", "Republic of Ireland", "Sweden", "Switzerland",
-                                       "Denmark", "FR Yugoslavia", "France", "Serbia", "Poland", "Portugal",
-                                       "Czech Republic", "Bosnia and Herzegovina", "Ukraine", "Slovenia",
-                                       "Iceland") ~ "Europe",
-                   winning_team %in% c("Cameroon", "Soviet Union", "Bulgaria", "Nigeria", "Russia",
-                                       "Saudi Arabia", "Iran", "Japan", "South Africa", "South Korea",
-                                       "Australia", "Turkey", "Ghana", "Tunisia", "Algeria", "Slovakia",
+                                       "Colombia", "Mexico", "Jamaica", "Paraguay", "Ecuador", "Peru",
+                                       "Chile", "Honduras", "Bolivia", "Trinidad and Tobago") ~ "Americas",
+                   winning_team %in% c("Austria", "Belgium", "Croatia", "England", "Italy", "Romania",
+                                       "Scotland", "Spain", "West Germany", "Yugoslavia", "Czechoslovakia",
+                                       "Germany", "Netherlands", "Norway", "Republic of Ireland", "Sweden",
+                                       "Switzerland", "Denmark", "FR Yugoslavia", "France", "Serbia",
+                                       "Poland", "Portugal", "Czech Republic", "Bosnia and Herzegovina",
+                                       "Ukraine", "Slovenia", "Iceland", "Greece", "Soviet Union",
+                                       "Russia", "Bulgaria", "Turkey") ~ "Europe",
+                   winning_team %in% c("Cameroon",  "Nigeria", "Senegal", "Morocco", "Saudi Arabia",
+                                       "Iran", "Japan", "South Africa", "South Korea", "Ivory Coast",
+                                       "Australia", "Ghana", "Tunisia", "Algeria", "Slovakia",
                                        "New Zealand", "Angola", "Egypt") ~ "Rest Of World"
                  )) %>%
                  group_by(year, stage_status, continent) %>%
@@ -330,7 +342,9 @@ Lastly, we plot the data in the `final_dataset` using ggplot2. Faceting is neede
 
 ```{r}
 ggplot(final_dataset, aes(x = continent, y = score)) + 
-  geom_col(aes(fill = stage_status)) + 
+  geom_col(aes(fill = stage_status)) +
+  # I'm not sure how to rearrange the order of the stacking of bars in the following order:
+  # Group stage (bottom), Round of 16, Quarterfinals, Top 4 (top) - will be better and easier to see the difference
   facet_wrap(~ year) +
   labs(title = "Total score for various continents grouped by stage status from 1990 to 2018", x = "Continents", y = "Total score", fill = "Stage Status") + 
   theme(legend.position = "bottom", plot.title = element_text(hjust = 0.5))
