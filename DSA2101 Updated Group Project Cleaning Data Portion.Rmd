@@ -94,9 +94,87 @@ These are all in preparation to answer the question: **What factors affect the p
 
 **Create a heat map showcasing the total points across all world cups for every country**
 
-First, the information of the coordinates of the countries in terms of longitude and latitude are needed to plot the heatmap. The coordinates can be obtained by using the `map_data("world")` command. Certain subregions in the dataset are not properly separated into the respective regions (eg. Scotland, Great Britain, Isle of Wight and Wales are all under UK in the region column of the dataset). However, these countries should be differentiated by region.  
+### Part 1: Preparing the Data
 
-```{r Heat Map 1}
+As our objecive is to show the total points obtained across all world cup matches for each country, we should first tabulate the all-time total points obtained for each country. As per FIFA's convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if the match ends up in a draw.
+
+- Group Stage matches before 1994's World Cup awarded 2 points for a win instead of 3, but for simplicity and standardisation, we will award 3 points for a win regardless of the year.
+
+- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.
+
+- For knockout stage matches that end up in penalty shootouts, we award 1 point to both teams as we consider it a draw. The outcome of the penalty shootout does not affect the points.
+
+For our dataset, we considered the following cases in point allocation:
+
+- Case 1: If Home Score > Away Score, Home Team given 3 points, Away Team given 0 points. 
+  
+- Case 2: If Away Score > Home Score, Away Team given 3 points, Home Team given 0 points.
+  
+- Case 3: If Home Score = Away Score, match is a draw, 1 point will be allocated to both teams. 
+  
+Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered draw.
+
+Firstly, we ensure that all the rows of the `wcmatches_tidy` dataset where penalties are required are set to Draw in the `win_outcome` column of the dataset. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. This is stored in a new dataset called `wcmatches_updated`.
+
+```{r Heatmap 1a}
+wcmatches_updated <- wcmatches_tidy %>%
+                     mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
+                     select(home_team, away_team, win_outcome)
+```
+
+Next, we filter the `wcmatches_updated` dataset for observations that either the home team or the away team wins. The teams that win the matches will be kept. Count the number of times each team is present in the dataset and subsequently, multiply the count of each team by 3 to get the win points. We store this in a dataset called `wcmatches_wins`. We can ignore the losing teams, as losing a match will not award any points.
+```{r Heatmap 1b}
+wcmatches_wins <- wcmatches_updated %>%
+                  filter(win_outcome %in% c("Home", "Away")) %>%
+                  mutate(country = ifelse(win_outcome == "Home", home_team, away_team)) %>%
+                  select(country) %>%
+                  group_by(country) %>%
+                  summarise(win_points = 3 * n())
+```
+
+We do the same for matches that end up in a draw, by filtering `wcmatches_updated` for observations where the matches have a draw result. Both the home team and the away team will be kept. We then combine the home and away teams in a single column and count the number of times each team is present in the dataset. Points obtained from matches that end up in draws is equal to the count, since draws give 1 point to both teams. We store this in a dataset called `wcmatches_draws`.
+```{r Heatmap 1c}
+wcmatches_draws <- wcmatches_updated %>%
+                   filter(win_outcome == "Draw") %>%
+                   pivot_longer(home_team:away_team) %>%
+                   rename(country = value) %>%
+                   select(country) %>%
+                   group_by(country) %>%
+                   summarise(draw_points = n())
+```
+
+Afterwards, we do a full join of `wcmatches_wins` and `wcmatches_draws` and ensure that all teams are contained in the merged dataset. We use `full_join` because we do not want to omit countries that only ever had matches that ended up in a draw, or countries that only ever had matches that ended up in a win/loss.
+
+Certain entries in the merged dataset contain NA values as some countries are not found in either `wcmatches_draws` or `wcmatches_wins`. The NA values should be replaced by 0. Compute the total points for each country by summing the draw points and win points.
+
+Certain teams such as Soviet Union, Yugoslavia and Czechoslovakia should be renamed to their current-day regions in order to merge with the `world_coordinates` dataset. Store it in a new dataset called `wcmatches_tabulated`.
+
+```{r Heatmap 1d}
+wcmatches_tabulated <- wcmatches_wins %>%
+                       full_join(wcmatches_draws, by = "country") %>%
+                       mutate(win_points = replace_na(win_points, 0),
+                              draw_points = replace_na(draw_points, 0),
+                              total_points = win_points + draw_points) %>% 
+                       select(country, total_points) %>%
+                       mutate(country = case_when(
+                         country == "West Germany" ~ "Germany",
+                         country == "East Germany" ~ "Germany",
+                         country == "Soviet Union" ~ "Russia",
+                         country == "Yugoslavia" ~ "Serbia",
+                         country == "FR Yugoslavia" ~ "Serbia",
+                         country == "Czechoslovakia" ~ "Czech Republic",
+                         .default = country)) %>%
+                       group_by(country) %>%
+                       summarise(total_points = sum(total_points))
+```
+
+## Part 2: Visualising `total_points` on a heat map
+
+First, we obtain information on the coordinates of the countries by using the `map_data("world")`.
+
+We noticed that certain subregions in the dataset are not properly separated into the respective regions (eg. Scotland, Great Britain, Isle of Wight and Wales are all under UK in the region column of the dataset). However, these countries should be differentiated by region, as per FIFA's convention.
+
+```{r Heatmap 2a}
 world_coordinates = map_data("world") %>%
                     mutate(region = case_when(
                            region == "USA" ~ "United States",
@@ -106,46 +184,24 @@ world_coordinates = map_data("world") %>%
                            subregion == "Wales" ~ "Wales",
                            subregion == "Northern Ireland" ~ "Northern Ireland",
                            .default = region)) %>%
-                    select(-subregion)
-
+                    select(-subregion) %>%
+                    filter(region != "Antarctica")
 ```
 
+Next, join the `world_coordinates` dataset with the `wcmatches_tabulated` dataset by the name of the region. All the country names in the `wcmatches_tabulated` exist in the region column of the `world_coordinates` dataset.
 
-Join `wcmatches_wins` and `wcmatches_draws` and ensure that all teams are contained in the merged dataset. Certain entries in the merged dataset contain NA values as some teams are not found in either `wcmatches_draws` or `wcmatches_wins`. The NA values should be replaced by 0. Compute the total points for each team by summing the draw points and win points. Certain teams such as Yugoslavia and Czechoslovakia should be renamed to their respective regions in order to merge with the `world_coordinates` dataset. Store it in a new dataset called `wcmatches_tabulated_two`.
-
-```{r Heat Map 2}
-wcmatches_tabulated_two <- wcmatches_wins %>%
-                           full_join(wcmatches_draws, by = "country") %>%
-                           mutate(win_points = replace_na(win_points, 0),
-                                  draw_points = replace_na(draw_points, 0),
-                                  total_points = win_points + draw_points) %>% 
-                           select(country, total_points) %>% 
-                           mutate(country = case_when(
-                                  country == "West Germany" ~ "Germany",
-                                  country == "East Germany" ~ "Germany",
-                                  country == "Soviet Union" ~ "Russia",
-                                  country == "Yugoslavia" ~ "Serbia",
-                                  country == "FR Yugoslavia" ~ "Serbia",
-                                  country == "Czechoslovakia" ~ "Czech Republic",
-                                  .default = country)) %>%
-                           group_by(country) %>%
-                           summarise(total_points = sum(total_points))
-```
-
-Next, join the `world_coordinates` dataset with the `wcmatches_tabulated_two` dataset by the name of the region. All the country names in the `wcmatches_tabulated_two` exist in the region column of the `world_coordinates` dataset.
-
-```{r Heat Map 3}
-top_countries_joined = world_coordinates %>%
-                       left_join(wcmatches_tabulated_two, by = c("region" = "country"))
+```{r Heatmap 2b}
+top_countries_joined = wcmatches_tabulated %>%
+                       left_join(world_coordinates, by = c("country" = "region"))
 ```
 
 Lastly, use ggplot to generate the heatmap that showcase the total number of points various countries earned from the world cup matches over the years. Countries that are not involved in the world cup have a score of NA in the `top_countries_joined` dataset and hence, encoded as a grey shade in the heatmap. The viridis package is being used for users who are color-blind to observe the colours distributed across the heatmap well.
 
-```{r Heat Map 4}
+```{r Heatmap 2c}
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  labs(title = "Global Distribution of Total Points obtained across World Cups") + 
-  scale_fill_viridis(limits = c(0, 250)) + 
+  labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") + 
+  scale_fill_viridis(name = "Total Points", limits = c(0, 250)) + 
   theme(axis.text = element_blank(),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
@@ -156,10 +212,9 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
   borders(database = "world", regions = ".", fill = NA, colour = "black", size = 0.1) + 
   theme_map() + 
   theme_minimal() + 
-  theme(legend.position = "bottom", axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()) + 
+  theme(legend.position = "bottom", axis.title = element_blank(),
+        axis.text = element_blank(), axis.ticks = element_blank()) + 
   ylim(-60, 100)
-  
-
 ```
 
 ## Visualisation 2: Scatter Plot
