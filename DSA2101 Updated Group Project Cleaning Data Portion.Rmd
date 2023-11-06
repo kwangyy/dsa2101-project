@@ -34,12 +34,11 @@ library(viridis)
 Firstly, we prepare the two datasets using the `readr` package.
 
 ```{r Reading Data}
-# we read from tidytuesday
-root_url <- 'https://raw.githubusercontent.com/'
-intermediate <- 'rfordatascience/tidytuesday/master/data/2022/2022-11-29/'
+library("tidytuesdayR")
+tuesdata <- tt_load(2022, week = 48)
 
-wcmatches <- read_csv(paste0(root_url, intermediate, 'wcmatches.csv'))
-worldcups <- read_csv(paste0(root_url, intermediate, 'worldcups.csv'))
+wcmatches <- tuesdata$wcmatches
+worldcups <- tuesdata$worldcups
 ```
 
 After that, we did some cleaning with the two datasets. 
