@@ -214,6 +214,7 @@ Lastly, use ggplot to generate the heatmap that showcase the total number of poi
 ```{r Heatmap 2c}
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group, fill = fill)) +
   geom_polygon(aes(fill = total_points)) +
+  geom_polygon(data = subset(top_countries_joined, total_points == 0), fill = "white") + 
   labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") + 
   scale_fill_gradient2(name = "Total Points", low = "yellow", mid = "#ff8c00", high = "indianred4", midpoint = 125, na.value = "grey50") +
   theme(axis.text = element_blank(),
