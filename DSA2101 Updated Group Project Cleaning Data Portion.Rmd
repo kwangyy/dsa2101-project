@@ -195,13 +195,13 @@ top_countries_joined = wcmatches_tabulated %>%
                        left_join(world_coordinates, by = c("country" = "region"))
 ```
 
-Lastly, use ggplot to generate the heatmap that showcase the total number of points various countries earned from the world cup matches over the years. Countries that are not involved in the world cup have a score of NA in the `top_countries_joined` dataset and hence, encoded as a grey shade in the heatmap. The viridis package is being used for users who are color-blind to observe the colours distributed across the heatmap well.
+Lastly, use ggplot to generate the heatmap that showcase the total number of points various countries earned from the world cup matches over the years. Countries that are not involved in the world cup have a score of NA in the `top_countries_joined` dataset and hence, encoded as a grey shade in the heatmap.
 
 ```{r Heatmap 2c}
 ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
   labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") + 
-  scale_fill_viridis(name = "Total Points", limits = c(0, 250)) + 
+  scale_fill_gradient2(name = "Total Points", low = "yellow", mid = "#ff8c00", high = "indianred4", midpoint = 125) + 
   theme(axis.text = element_blank(),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
