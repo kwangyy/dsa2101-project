@@ -1,5 +1,5 @@
 ---
-title: "Group Project Preparation"
+title: "DSA2101 Group Project"
 author: "World Cup Finals Group"
 date: "`r Sys.Date()`"
 output: html_document
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Introduction
+# Introduction
 
 The FIFA World Cup Dataset covers every single World Cup match played in its history from Uruguay in 1930 to Russia in 2018. The dataset consists of two `csv` files: `wcmatches.csv` and `worldcups.csv`.
 
@@ -29,7 +29,7 @@ library(ggthemes)
 library(viridis)
 ```
 
-## Data cleaning and summary
+# Data cleaning and summary
 
 Firstly, we prepare the two datasets using the `readr` package.
 
@@ -88,75 +88,9 @@ wcmatches_tidy <- wcmatches %>%
 These are all in preparation to answer the question: **What factors affect the performance of countries in the World Cup?**
 
 
-## Visualisations
+# Visualisations
 
-### 1st Visualization: 
-
-**Create a bar plot showcasing the top ten countries in the world cup that have the highest total points for all years**
-
-Point Allocation Should be: 
-
-  Case 1: If Home Score > Away Score, Home Team given 3 points, Away Team given 0 points. 
-  
-  Case 2: If Away Score > Home Score, Away Team given 3 points, Home Team given 0 points.
-  
-  Case 3: If Home Score = Away Score, match is a draw, 1 point will be allocated to both teams. 
-  
-Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered draw.
-  
-
-Firstly, ensure that all the rows of the `wcmatches_tidy` dataset where penalties are required are set to Draw in the `win_outcome` column of the dataset. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. This is stored in a new dataset called `wcmatches_updated`.
-
-```{r Bar Plot 1}
-wcmatches_updated <- wcmatches_tidy %>%
-                     mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
-                     select(home_team, away_team, win_outcome)
-```
-
-Next, subset the `wcmatches_updated` dataset to filter for observations that either the home team or the away team wins. The teams that win the matches are to be kept. Count the number of times each team is present in the dataset and subsequently, multiply the count of each team by 3 to get the win points. Store this in a dataset called `wcmatches_wins`.
-```{r Bar Plot 2}
-wcmatches_wins <- wcmatches_updated %>%
-                  filter(win_outcome %in% c("Home", "Away")) %>%
-                  mutate(country = ifelse(win_outcome == "Home", home_team, away_team)) %>%
-                  select(country) %>%
-                  group_by(country) %>%
-                  summarise(win_points = 3 * n())
-```
-
-Similarly, subset the `wcmatches_updated` dataset to filter for observations where the matches have a draw result. Both the home team and the away team are to be kept. Combine the home and away teams in a single column and count the number of times each team is present in the dataset. Draw points is equal to the count. Store this in a dataset called `wcmatches_draws`.
-```{r Bar Plot 3}
-wcmatches_draws <- wcmatches_updated %>%
-                   filter(win_outcome == "Draw") %>%
-                   pivot_longer(home_team:away_team) %>%
-                   rename(country = value) %>%
-                   select(country) %>%
-                   group_by(country) %>%
-                   summarise(draw_points = n())
-```
-
-Afterwards, join `wcmatches_wins` and `wcmatches_draws` and ensure that all teams are contained in the merged dataset. Certain entries in the merged dataset contain NA values as some countries are not found in either `wcmatches_draws` or `wcmatches_wins`. The NA values should be replaced by 0. Compute the total points for each country by summing the draw points and win points. Store it in a new dataset called `wcmatches_tabulated`. 
-```{r Bar Plot 4}
-wcmatches_tabulated <- wcmatches_wins %>%
-                       full_join(wcmatches_draws, by = "country") %>%
-                       mutate(win_points = replace_na(win_points, 0),
-                              draw_points = replace_na(draw_points, 0),
-                              total_points = win_points + draw_points) %>% 
-                       select(country, total_points) %>%
-                       arrange(desc(total_points)) %>%
-                       head(10)
-```
-
-Lastly, use `ggplot` to generate the bar plot that showcase the top 10 countries that have the highest number of total points arranged in descending order in a horizontal format. Rename the labels accordingly. 
-```{r Bar Plot 5}
-ggplot(wcmatches_tabulated, aes(x = fct_reorder(country, total_points), y = total_points)) + 
-  geom_col(fill = "#FF9999") +
-  coord_flip() + 
-  labs(x = "Country", y = "Total Points", title = "Top 10 Best Performing Countries In World Cup") + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_text(label = wcmatches_tabulated$total_points, size = 5, position = position_stack(vjust = 0.5))
-```
-
-### 2nd Visualization:
+## Visualisation 1: Heat Map
 
 **Create a heat map showcasing the total points across all world cups for every country**
 
@@ -173,6 +107,7 @@ world_coordinates = map_data("world") %>%
                            subregion == "Northern Ireland" ~ "Northern Ireland",
                            .default = region)) %>%
                     select(-subregion)
+
 ```
 
 
@@ -227,151 +162,33 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
 
 ```
 
-## For Emergency Use Only: In case the line graph/scatter plot does not work.
-### Just delete this part if everything is okay with the line graph/scatter plot as we only need 3 visualisations
+## Visualisation 2: Scatter Plot
 
-
-Question: 
-
-**Compute the scores of the various teams involved in the world cup. Include world cup matches from 1986 onwards. Group the teams by continents (Americas, Europe and Rest Of World) and differentiate the scores according to the stage status of the game, i.e. Group Stage, Round of 16, Quarterfinals and Top 4 (which comprises Semifinals, 3rd Place and Final).**
-
-Solution: 
-
-This question can be solved using multiple bar graphs through faceting. From the question, there will be 4 variables. 
-1st Variable: Continents (Americas, Europe and Rest Of World)
-2nd Variable: Stage Status (Group Stage, Round of 16 and Top 4)
-3rd Variable: Year (1986, 1990, 1994, 1998, 2002, 2006, 2010, 2014, 2018)
-4th Variable: Total score for the teams 
-
-### Multiple bar charts 
-
-First, filter for the world cup matches with year 1986 onwards and select the relevant columns (`year`, `stage_status`, `winning_team`). In the first dataset, only observations where the outcome of the matches are not draws are kept. Only the winning team is selected for point allocation later on. Before the point allocation, we must change the respective stage status (`Quarterfinals`, `Semifinals`, `Third place`, `Final`) to "Top 4". Group the dataset by both the year and the stage status (since both are considered variables) and allocate the points for the winning teams accordingly. Store this in a dataset called `winning_data`.
-
-```{r Multiple Bar Chart 1}
-winning_data <- wcmatches_tidy %>%
-                filter(year >= 1986, win_outcome != "Draw") %>%
-                select(year, winning_team, stage_status) %>%
-                mutate(stage_status = ifelse(
-                  stage_status %in% c("Semifinals", "Final", "Third place"), "Top 4",
-                  stage_status)
-                  ) %>%
-                group_by(year, stage_status) %>%
-                count(winning_team) %>%
-                mutate(win_points = 3 * n) %>%
-                select(-n)
-```
-
-
-Repeat the same process for the world cup matches that have draws. In this case, we select both the home team and the away team as points will be allocated to both teams. Store the filtered and tidied dataset where year of the matches are from 1986 onwards and the outcome of the matches is draw in a dataset called `draw_data`.
-
-```{r Multiple Bar Chart 2}
-draw_data <- wcmatches_tidy %>%
-             filter(year >= 1986, win_outcome == "Draw") %>%
-             select(year, stage_status, home_team, away_team)
-```
-
-
-Separate the `draw_data` dataset to keep the observations for the home team and the away team. Allocate the points to the home team and the away team accordingly. Simlarly, group the datasets by both the year and the stage status. Store the datasets as `draw_data_home` and `draw_data_away` respectively.
-
-```{r Multiple Bar Chart 3}
-draw_data_home <- draw_data %>%
-                  select(year, stage_status, home_team) %>%
-                  group_by(year, stage_status) %>%
-                  count(home_team) %>%
-                  mutate(home_points = n) %>%
-                  select(-n)
-
-draw_data_away <- draw_data %>%
-                  select(year, stage_status, away_team) %>%
-                  group_by(year, stage_status) %>%
-                  count(away_team) %>%
-                  mutate(away_points = n) %>%
-                  select(-n)
-```
-
-Join the `draw_data_home` and `draw_data_away` datasets and ensure that all the observations exist in the merged dataset. The two datasets need to be joined using multiple columns, including year, stage_status and the name of the home and away teams. Certain entries in the merged dataset contain NA values as some teams are not found in either `draw_data_home` or `draw_data_away`. The NA values should be replaced by 0. This merged dataset will contain all the draw matches and the draw points as well (by summing up the home points and the away points). Store this dataset as `combined_draw_data`.
-
-```{r Multiple Bar Chart 4}
-combined_draw_data <- draw_data_home %>%
-                      full_join(draw_data_away,
-                                by = c("year" = "year",
-                                       "stage_status" = "stage_status",
-                                       "home_team" = "away_team")) %>%
-                      mutate(home_points = replace_na(home_points, 0), 
-                             away_points = replace_na(away_points, 0), 
-                             draw_points = home_points + away_points) %>%
-                      mutate(stage_status = ifelse(
-                        stage_status %in% c("Semifinals", "Final", "Third place"), "Top 4",
-                        stage_status)) %>%
-                      arrange(year, match(stage_status,
-                                          c("Group Stage", "Round of 16", "Quarterfinals", "Top 4"))) %>%
-                      select(year, home_team, draw_points)
-```
-
-Afterwards, join the `combined_draw_data` with the `winning_data` datasets and ensure that all the observations exist in the merged dataset. Similarly, the two datasets need to be joined using multiple columns, including year, stage_status and the name of the winning and home teams. Certain entries in the merged dataset contain NA values as some teams are not found in either `winning_data` or `combined_draw_data`. The NA values should be replaced by 0. Compute the grand total number of points for each team (grand_total_points column). Lastly, we need to add a new column to get the continents of the teams (Americas, Europe or Rest Of World). Store this in a dataset called `final_dataset`.
-
-```{r Multiple Bar Chart 5}
-final_dataset = winning_data %>%
-                full_join(combined_draw_data,
-                          by = c("year" = "year",
-                                 "stage_status" = "stage_status",
-                                 "winning_team" = "home_team")) %>%
-                mutate(win_points = replace_na(win_points, 0),
-                       draw_points = replace_na(draw_points, 0),
-                       grand_total_points = win_points + draw_points) %>%
-                select(year, winning_team, grand_total_points) %>%
-                mutate(continent = case_when(
-                  winning_team %in% c("Argentina", "Brazil", "Costa Rica", "Uruguay", "United States",
-                                      "Colombia", "Mexico", "Jamaica", "Paraguay", "Ecuador", "Peru",
-                                      "Chile", "Honduras", "Bolivia", "Trinidad and Tobago") ~ "Americas",
-                  winning_team %in% c("Austria", "Belgium", "Croatia", "England", "Italy", "Romania",
-                                      "Scotland", "Spain", "West Germany", "Yugoslavia", "Czechoslovakia",
-                                      "Germany", "Netherlands", "Norway", "Republic of Ireland", "Sweden",
-                                      "Switzerland", "Denmark", "FR Yugoslavia", "France", "Serbia",
-                                      "Poland", "Portugal", "Czech Republic", "Bosnia and Herzegovina",
-                                      "Ukraine", "Slovenia", "Iceland", "Greece", "Soviet Union",
-                                      "Russia", "Bulgaria", "Turkey", "Hungary", "Northern Ireland") ~ "Europe",
-                  winning_team %in% c("Cameroon",  "Nigeria", "Senegal", "Morocco", "Saudi Arabia",
-                                      "Iran", "Japan", "South Africa", "South Korea", "Ivory Coast",
-                                      "Australia", "Ghana", "Tunisia", "Algeria", "Slovakia",
-                                      "New Zealand", "Angola", "Egypt") ~ "Rest Of World")) %>%
-                 mutate(stage_status = factor(stage_status,
-                                              levels = c("Top 4", "Quarterfinals", "Round of 16", "Group Stage"))) %>%
-                 group_by(year, stage_status, continent) %>%
-                 summarize(score = sum(grand_total_points))
-
-```
-
-Lastly, we plot the data in the `final_dataset` using ggplot2. Faceting is needed as there are 4 variables to be considered. Total score is a continuous variable and hence should be mapped to the y aesthetic. The other three discrete variables considered are continent, stage status and year. Label the plot accordingly.
-
-```{r}
-ggplot(final_dataset, aes(x = continent, y = score)) + 
-  geom_col(aes(fill = stage_status)) +
-  facet_wrap(~ year) +
-  labs(title = "Total score for various continents grouped by stage status from 1986 to 2018", x = "Continents", y = "Total score", fill = "Stage Status") + 
-  theme(legend.position = "bottom", plot.title = element_text(hjust = 0.5))
-
-```
-
-### Host country performance
-```{r}
+Host country performance
+```{r Scatter}
 
 ```
 
 
+## Visualisation 3: Line Plot
+```{r Line Plot}
 
-## DO NOT DELETE THIS
+
+```
+
+
+# DO NOT DELETE THIS
 1. find country with best overall performance --> hypothesize with the next few questions
 2. line plot
 3. scatterplot
 
 
 
-## Discussion
+# Discussion
 
 
 
-## References
+# References
 - R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
 
 
