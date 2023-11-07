@@ -69,7 +69,7 @@ For the `wcmatches` dataset, columns were renamed, clarifying `stage_status` fro
 wcmatches_tidy <- wcmatches %>%
                   rename(stage_status = stage, win_outcome = outcome) %>%
                   mutate(stage_status = ifelse(str_detect(stage_status, "Group"), "Group Stage", stage_status), 
-                         stage_status = ifelse(stage_status == "Final Round", "Finals", stage_status)) %>%
+                         stage_status = ifelse(stage_status == "Final Round", "Final", stage_status)) %>%
                   select(-date) %>%
                   mutate(win_outcome = case_when(
                          home_score == away_score ~ "Draw",
@@ -79,7 +79,7 @@ wcmatches_tidy <- wcmatches %>%
                   mutate(score_difference = abs(home_score - away_score), 
                          win_conditions = replace_na(win_conditions, "Nil"),
                          after_extra_time = ifelse(str_detect(win_conditions, "AET"), 1, 0), 
-                         penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0))
+                         penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
 ```
 
 These are all in preparation to answer the question: **What factors affect the performance of countries in the World Cup?**
@@ -244,24 +244,27 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
 
 ## Visualisation 2: Scatter Plot
 
-Host country performance
+Host country performance: Avg number of wins when they are not the host vs when they are the host 
 ```{r Scatter}
 
 ```
 
 
 ## Visualisation 3: Line Plot
+For the last line plot, we want to see whether the stage status has affected the goal differences. 
 ```{r Line Plot}
+diff_avg_plot <- wcmatches_tidy %>% 
+  mutate(difference = abs(home_score - away_score)) %>%
+  group_by(year, stage_status) %>%
+  summarize(diff_avg = mean(difference))
 
+diff_avg_plot
 
+ggplot(diff_avg_plot, aes(x = year, y = diff_avg)) + 
+  geom_line() + 
+  geom_point(aes(y = diff_avg)) + 
+  facet_wrap(.~stage_status)
 ```
-
-
-# DO NOT DELETE THIS
-1. find country with best overall performance --> hypothesize with the next few questions
-2. line plot
-3. scatterplot
-
 
 
 # Discussion
