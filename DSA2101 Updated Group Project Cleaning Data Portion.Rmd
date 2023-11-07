@@ -252,20 +252,33 @@ Host country performance: Avg number of wins when they are not the host vs when 
 
 ## Visualisation 3: Line Plot
 For the last line plot, we want to see whether the stage status has affected the goal differences. 
+For this visualisation in particular, we will want to combine both "Final" and "Third Place" as "Final Matches". This is because it is meaningless to visualise both the Final match and the Third Place match if we're looking to find the average. 
 ```{r Line Plot}
+stage_levels <- c("Group Stage", "Knockout Stages", "Final Stages")
+knockout_stages <- c("Quarterfinals", "Round of 16", "Semifinals")
+final_stages <- c("Final", "Third place")
+
+
 diff_avg_plot <- wcmatches_tidy %>% 
-  mutate(difference = abs(home_score - away_score)) %>%
+  # We mutate this first so that the code is a lot more readable
+  mutate(stage_status = case_when(stage_status %in% knockout_stages ~ "Knockout Stages",
+                                  stage_status %in% final_stages ~ "Final Stages",
+                                  stage_status == "Group Stage" ~ "Group Stage")
+                                  ) %>%
+  # We then mutate it according to difference and stage_level
+  mutate(stage_status = factor(stage_status, stage_levels)) %>%
   group_by(year, stage_status) %>%
-  summarize(diff_avg = mean(difference))
+  summarize(diff_avg = mean(score_difference)) 
 
 diff_avg_plot
-
 ggplot(diff_avg_plot, aes(x = year, y = diff_avg)) + 
   geom_line() + 
   geom_point(aes(y = diff_avg)) + 
   facet_wrap(.~stage_status)
 ```
-
+``` {r}
+wcmatches_tidy
+```
 
 # Discussion
 From the guidelines (remove when done): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
