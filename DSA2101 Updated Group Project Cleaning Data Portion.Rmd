@@ -164,7 +164,7 @@ wcmatches_allcountries <- rbind(home_countries, away_countries) %>%
 
 Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset. Some entries in the merged dataset contain `NA` values as some countries are not in either `wcmatches_draws` or `wcmatches_wins`. We replace these `NA` values with `0` and compute the total points for each country by adding the `draw_points` and `win_points`.
 
-Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in order to merge with the `world_coordinates` dataset. We then stored it in a new dataset called `wcmatches_tabulated`.
+Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in order to merge with `map_data("world")` from the `maps` package. For East Germany, we consider it to be part of the present-day Germany although FIFA does not count their records as part of present-day Germany. We then stored it in a new dataset called `wcmatches_tabulated`.
 
 ```{r Heatmap 1e}
 wcmatches_tabulated <- wcmatches_wins %>%
@@ -191,28 +191,28 @@ wcmatches_tabulated <- wcmatches_wins %>%
 
 ### Part 2: Visualising `total_points` on a heatmap
 
-We now visualise the total points obtained on a heatmap by using `map_data("world")` to get information on world coordinates. We renamed some countries to match those in the `wcmatches_tabulated` dataset. For example, the United Kingdom consisting of Scotland, Great Britain, Isle of Wight, Wales and Northern Ireland should be separated into their subregions.
+We now visualise the total points obtained on a heatmap by using `map_data("world")` to get the world coordinates. We renamed some countries to match those in the `wcmatches_tabulated` dataset. For example, the United Kingdom consisting of Scotland, Great Britain, Isle of Wight, Wales and Northern Ireland should be separated into their subregions.
 
 ```{r Heatmap 2a}
-world_coordinates <- map_data("world") %>%
-                     mutate(region = case_when(
-                       region == "USA" ~ "United States",
-                       region == "China" ~ "China PR",
-                       region == "Ireland" ~ "Republic of Ireland",
-                       subregion == "Scotland" ~ "Scotland",
-                       subregion == "Great Britain" ~ "England",
-                       subregion == "Isle of Wight" ~ "England",
-                       subregion == "Wales" ~ "Wales",
-                       subregion == "Northern Ireland" ~ "Northern Ireland",
-                       .default = region)) %>%
-                     select(-subregion)
+world_map <- map_data("world") %>%
+             mutate(region = case_when(
+               region == "USA" ~ "United States",
+               region == "China" ~ "China PR",
+               region == "Ireland" ~ "Republic of Ireland",
+               subregion == "Scotland" ~ "Scotland",
+               subregion == "Great Britain" ~ "England",
+               subregion == "Isle of Wight" ~ "England",
+               subregion == "Wales" ~ "Wales",
+               subregion == "Northern Ireland" ~ "Northern Ireland",
+               .default = region)) %>%
+             select(-subregion)
 ```
 
-Next, we do a full join on the `world_coordinates` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_coordinates` dataset.
+Next, we do a full join on the `world_map` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup in our map. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_map` dataset.
 
 ```{r Heatmap 2b}
 top_countries_joined <- wcmatches_tabulated %>%
-                        full_join(world_coordinates, by = c("country" = "region"))
+                        full_join(world_map, by = c("country" = "region"))
 ```
 
 Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
@@ -224,7 +224,7 @@ ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = gro
   labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") + 
   scale_fill_gradient2(name = "Total Points",
                        low = "#ffffb2", mid = "#ff8c00", high = "indianred4",
-                       midpoint = 125, na.value = "white") + #YlOrRd palette
+                       midpoint = 125, na.value = "white") +
   borders(database = "world", regions = ".", fill = NA, colour = "black", size = 0.1) + 
   theme_map() + 
   theme_minimal() + 
@@ -269,6 +269,7 @@ ggplot(diff_avg_plot, aes(x = year, y = diff_avg)) +
   geom_point(aes(y = diff_avg)) + 
   facet_wrap(.~stage_status)
 ```
+
 ``` {r}
 wcmatches_tidy
 ```
