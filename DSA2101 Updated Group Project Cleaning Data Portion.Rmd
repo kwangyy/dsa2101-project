@@ -106,11 +106,11 @@ As per FIFA convention, for each match, we award 3 points to the winning team, 0
 
 In the case of our dataset, we considered the following cases in point allocation:
 
-- Case 1: If Home Score > Away Score, Home Team given 3 points, Away Team given 0 points. 
+- Case 1: If `home_score` > `away_score`, `home_team` gets 3 points, `away_team` gets 0 points. 
   
-- Case 2: If Away Score > Home Score, Away Team given 3 points, Home Team given 0 points.
+- Case 2: If `away_score` > `home_score`, `away_team` gets 3 points, `home_team` gets 0 points.
   
-- Case 3: If Home Score = Away Score, the match is a draw. Both teams given 1 point each.
+- Case 3: If `home_score` = `away_score`, the match is a draw. Both teams given 1 point each.
   
 Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
@@ -122,7 +122,7 @@ wcmatches_updated <- wcmatches_tidy %>%
                      select(home_team, away_team, win_outcome)
 ```
 
-Next, we filter the `wcmatches_updated` dataset for observations that either the home team or the away team wins. We only keep the teams that win the matches. We count the frequency that each team is present in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`.
+Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`.
 
 ```{r Heatmap 1b}
 wcmatches_wins <- wcmatches_updated %>%
@@ -133,7 +133,7 @@ wcmatches_wins <- wcmatches_updated %>%
                   summarise(win_points = 3 * n())
 ```
 
-We do the same for matches that end up in a draw by filtering `wcmatches_updated` for matches that end with a draw result. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset. Points obtained from matches that end up in draws are equal to the count, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`.
+We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`.
 
 ```{r Heatmap 1c}
 wcmatches_draws <- wcmatches_updated %>%
@@ -218,21 +218,17 @@ top_countries_joined <- wcmatches_tabulated %>%
 Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
 
 ```{r Heatmap 2c}
-ggplot(data = top_countries_joined, mapping = aes(x = long, y = lat, group = group)) +
+ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
-  geom_polygon(data = subset(top_countries_joined, total_points == 0), fill = "#ffffb2") + 
-  labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") + 
-  scale_fill_gradient2(name = "Total Points",
-                       low = "#ffffb2", mid = "#ff8c00", high = "indianred4",
-                       midpoint = 125, na.value = "white") +
-  borders(database = "world", regions = ".", fill = NA, colour = "black", size = 0.1) + 
-  theme_map() + 
-  theme_minimal() + 
-  theme(legend.position = "bottom", axis.title = element_blank(),
-        axis.text = element_blank(), axis.ticks = element_blank(),
-        axis.line = element_blank(), panel.border = element_blank(),
+  labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") +
+  scale_fill_gradientn(name = "Total Points",
+                       colors = c("#ffffb2", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026"),
+                       na.value = "white") +
+  borders(colour = "black", size = 0.1) +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank(), axis.text = element_blank(),
         panel.grid = element_blank(), plot.title = element_text(hjust = 0.5)) +
-  ylim(-60, 100)
+  ylim(-60, 90)
 ```
 
 ## Visualisation 2: Scatter Plot
@@ -275,8 +271,9 @@ wcmatches_tidy
 ```
 
 # Discussion
-From the guidelines (remove when done): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
+From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
+For our first visualisation on the total points obtained, we can observe that the top three successful nations at the World Cup are Brazil, Germany and Italy. We also notice that these three countries are strong in football, having won at least four World Cup trophies. The top three countries also belong to South America and Europe; these two continents tend to dominate the World Cup.
 
 # References
 - R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
