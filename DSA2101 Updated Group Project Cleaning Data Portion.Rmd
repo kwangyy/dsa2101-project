@@ -18,7 +18,7 @@ The FIFA World Cup Dataset covers every single World Cup match played in its his
 2. The `worldcups.csv` file contains the winners and has some dataset features like winners, games, goals_scored and more.
 
 We load the libraries to be used here:
-```{r libraries, warning = FALSE}
+```{r libraries, warning = FALSE, message = FALSE}
 library(readr)
 library(tidyverse)
 library(stringr)
@@ -32,14 +32,14 @@ library(ggthemes)
 
 Firstly, we read in the two datasets using the `readr` package.
 
-```{r Reading Data}
+```{r Reading Data, warning = FALSE, message = FALSE}
 wcmatches <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/wcmatches.csv')
 worldcups <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/worldcups.csv')
 ```
 
 After that, we did some cleaning with the two datasets. 
 
-In data preparation for the `worldcups` dataset, we restructured it by pivoting the data longer, condensing the `winner` columns to `fourth` columns to create a cleaner `position_status` column. We also standardised `USA` to `United States`, and introduced a new `continent` feature for future visualization, splitting into North and South America (`americas`), Europe (`europe`) and the rest of the world (`others`).
+In data preparation for the `worldcups` dataset, we restructured it by pivoting the data longer, condensing the `winner` columns to `fourth` columns to create a cleaner `position_status` column. We also standardised `USA` to `United States`, and introduced a new `continent` feature for future visualization, splitting into three groups: North and South America (`americas`), Europe (`europe`) and the rest of the world (`others`).
 
 ```{r Data Cleaning 1}
 americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
@@ -82,7 +82,7 @@ wcmatches_tidy <- wcmatches %>%
                          penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
 ```
 
-These are all in preparation to answer the question: **What factors affect the performance of countries in the World Cup?**
+These are all in preparation to answer the question: **Is the host country advantageous during the World Cup?**
 
 To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
 
@@ -90,9 +90,9 @@ To answer our question, we prepared three visualisations: a heatmap, a scatterpl
 
 ## Visualisation 1: Heatmap
 
-**Create a heatmap showcasing the total points across all World Cup matches for every country**
-
-As our objective is to show the total points obtained across all World Cup matches for each country, we should first tabulate the all-time total points for each country.
+We want to create a heatmap showcasing the total points across all World Cup matches for every country. We will split this process into two parts:
+1. Preparing the data to tabulate the all-time total points for each country.
+2. Plotting the points on the heatmap
 
 ### Part 1: Preparing the Data
 
@@ -231,6 +231,7 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
   ylim(-60, 90)
 ```
 
+
 ## Visualisation 2: Scatter Plot
 
 Host country performance: Avg number of wins when they are not the host vs when they are the host 
@@ -240,8 +241,14 @@ Host country performance: Avg number of wins when they are not the host vs when 
 
 
 ## Visualisation 3: Line Plot
-For the last line plot, we want to see whether the stage status has affected the goal differences. 
+
+For the last line plot, we want to see whether the stage status has affected the goal differences.
+
+We do this by finding the **proportion of goals that a host country has scored during their run**.
+(For example, in 1950, Brazil scored 25% of the total goals because they scored 22 goals in total, out of the 88 goals scored throughout the tournament.)
+
 For this visualisation in particular, we will want to combine both "Final" and "Third Place" as "Final Matches". This is because it is meaningless to visualise both the Final match and the Third Place match if we're looking to find the average. 
+
 ```{r Line Plot}
 viz_3_wcmatches <- wcmatches_tidy %>% 
   filter(home_team == country | away_team == country) %>%
@@ -256,12 +263,19 @@ viz_3_worldcups <- worldcups_tidy %>%
   summarize(goals_scored = mean(goals_scored)) %>% 
   select(year, country, goals_scored)
 
-viz_3_data <- viz_3_wcmatches %>% left_join(viz_3_worldcups, by = c("year" = "year")) %>%
+viz_3_data <- viz_3_wcmatches %>%
+  left_join(viz_3_worldcups, by = c("year" = "year")) %>%
   mutate(goal_proportion = (total_goals_scored / goals_scored) * 100) %>%
   select(year, country, goal_proportion) %>%
   ggplot(aes(x = year, y = goal_proportion)) +
   geom_line() +
-  geom_point()
+  geom_point() +
+  scale_x_continuous(breaks = seq(1930, 2018, 4)) +
+  scale_y_continuous(labels = scales::label_number(suffix = "%")) +
+  labs(title = "Proportion of Goals scored by Host Countries (1930-2018)",
+       subtitle = "Goals scored by host country as a percentage of total goals scored",
+       x = "", y = "Proportion of Goals Scored") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1))
 
 viz_3_data
 ```
@@ -277,7 +291,8 @@ worldcups_tidy
 # Discussion
 From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
-For our first visualisation on the total points obtained, we can observe that the top three successful nations at the World Cup are Brazil, Germany and Italy. We also notice that these three countries are strong in football, having won at least four World Cup trophies. The top three countries also belong to South America and Europe; these two continents tend to dominate the World Cup.
+Something about host country's performance
+
 
 # References
 - R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
