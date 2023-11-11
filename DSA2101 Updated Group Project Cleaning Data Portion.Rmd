@@ -242,8 +242,9 @@ Host country performance: Avg number of wins when they are not the host vs when 
 
 ## Visualisation 3: Line Plot
 
-For the last line plot, we want to see whether the stage status has affected the goal differences.
+We want to create a line plot that determines whether the stage status of the matches will affect the goal differences of the matches. 
 
+Solution: 
 We do this by finding the **proportion of goals that a host country has scored during their run**.
 (For example, in 1950, Brazil scored 25% of the total goals because they scored 22 goals in total, out of the 88 goals scored throughout the tournament.)
 
@@ -251,24 +252,37 @@ For this visualisation in particular, we will want to combine both "Final" and "
 
 There is one issue with the `wcmatches_tidy` dataset as years 1942 and 1946 are not included in the dataset. This is because there are no world cup matches held in 1942 and 1946 due to the second world war. This leads to a larger year difference of 12 years between the 1938 and the 1950 world cup matches. 
 
-```{r Line Plot}
+First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Save this in a dataset called `viz_3_matches`.
+
+```{r Line Plot 3a}
 viz_3_wcmatches <- wcmatches_tidy %>% 
   filter(home_team == country) %>%
   select(year, home_score) %>%
   group_by(year) %>%
   summarize(total_goals_scored = sum(home_score))
+```
+Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets subsequently. Save this in a dataset called `viz_3_worldcups`.
 
+```{r Line Plot 3b}
 viz_3_worldcups <- worldcups_tidy %>%
   rename(country = host_country) %>%
   group_by(year, country) %>% 
   summarize(goals_scored = mean(goals_scored)) %>% 
   select(year, country, goals_scored)
+```
 
+Afterwards, we join thr `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Save this in a dataset called `viz_3_data`. 
+
+```{r Line Plot 3c}
 viz_3_data <- viz_3_wcmatches %>%
   left_join(viz_3_worldcups, by = "year") %>%
   mutate(goal_proportion = (total_goals_scored / goals_scored) * 100) %>%
   select(year, country, goal_proportion)
+```
 
+Lastly, we can perform `ggplot` to create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. The years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line. 
+
+```{r Line Plot 3d}
 ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2.5) +
@@ -279,15 +293,6 @@ ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
        x = "Year", y = "Proportion of Goals Scored") +
   theme(plot.title = element_text(hjust = 0.5), 
         plot.subtitle = element_text(hjust = 0.5))
-
-```
-
-``` {r}
-wcmatches_tidy
-```
-
-``` {r}
-worldcups_tidy
 ```
 
 # Discussion
