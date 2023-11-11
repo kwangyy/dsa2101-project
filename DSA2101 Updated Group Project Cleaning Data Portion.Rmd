@@ -96,23 +96,14 @@ We want to create a heatmap showcasing the total points across all World Cup mat
 
 ### Part 1: Preparing the Data
 
-As per FIFA convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if it ends in a draw.
-
+As per FIFA convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if it ends in a draw. There are some exceptions and here's how we rectified them:
 - Group Stage matches before the 1994 World Cup awarded 2 points for a win instead of 3 (FIFA, 2016). However, for simplicity and standardisation, we will award 3 points for a win regardless of the year.
 
 - For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.
 
 - For knockout stage matches that end in penalty shootouts, we award 1 point to both teams as we consider it a draw. The outcome of the penalty shootout does not affect the points.
-
-In the case of our dataset, we considered the following cases in point allocation:
-
-- Case 1: If `home_score` > `away_score`, `home_team` gets 3 points, `away_team` gets 0 points. 
   
-- Case 2: If `away_score` > `home_score`, `away_team` gets 3 points, `home_team` gets 0 points.
-  
-- Case 3: If `home_score` = `away_score`, the match is a draw. Both teams given 1 point each.
-  
-Note: `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
+- `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
 Firstly, we ensure that all matches ending with penalties have a `win_outcome` of `Draw`. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. We store this in a new dataset called `wcmatches_updated`.
 
