@@ -19,6 +19,7 @@ The FIFA World Cup Dataset covers every single World Cup match played in its his
 
 We load the libraries to be used here:
 ```{r libraries, warning = FALSE, message = FALSE}
+library(tidytuesdayR)
 library(readr)
 library(tidyverse)
 library(stringr)
@@ -33,55 +34,125 @@ library(ggthemes)
 Firstly, we read in the two datasets using the `readr` package.
 
 ```{r Reading Data, warning = FALSE, message = FALSE}
-wcmatches <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/wcmatches.csv')
-worldcups <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/worldcups.csv')
+tuesdata <- tidytuesdayR::tt_load('2022-11-29')
+wcmatches <- tuesdata$wcmatches
+worldcups <- tuesdata$worldcups
+
+wcmatches
 ```
 
-After that, we did some cleaning with the two datasets. 
-
-In data preparation for the `worldcups` dataset, we restructured it by pivoting the data longer, condensing the `winner` columns to `fourth` columns to create a cleaner `position_status` column. We also standardised `USA` to `United States`, and introduced a new `continent` feature for future visualization, splitting into three groups: North and South America (`americas`), Europe (`europe`) and the rest of the world (`others`).
+After that, we performed data cleaning on both datasets. We start with the`worldcups` dataset by using the pivot_longer function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (americas), Europe (europe), and the rest of the world (others) for future visualization. For the wcmatches dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and  `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
 
 ```{r Data Cleaning 1}
+# Code block for the worldcups dataset
+
+# Define different continents
 americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
 
 europe <- c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain", "West Germany", "Netherlands", "Austria", "Belgium", "Croatia", "Czechoslovakia", "Hungary", "Poland", "Portugal", "Yugoslavia", "Bulgaria", "Soviet Union", "Turkey", "Russia")
 
 others <- c("South Africa", "Japan", "South Korea", "Japan, South Korea")
 
+# Transform the 'worldcups' data frame using pivot_longer
 worldcups_tidy <- worldcups %>%
-                  pivot_longer(winner:fourth, names_to = "position_status", values_to = "country_name") %>%
-                  rename(host_country = host) %>%
-                  mutate(host_country = ifelse(host_country == "USA", "United States", host_country), 
-                         country_name = ifelse(country_name == "USA", "United States", country_name)) %>%
-                  mutate(host_continent = case_when(
-                         host_country %in% americas ~ "Americas", 
-                         host_country %in% europe ~ "Europe",
-                         host_country %in% others ~ "Rest Of World"), 
-                         country_continent = case_when(
-                         country_name %in% americas ~ "Americas", 
-                         country_name %in% europe ~ "Europe",
-                         country_name %in% others ~ "Rest Of World"))
+  pivot_longer(winner:fourth, names_to = "position_status", values_to = "country_name") %>%
+  
+  # Rename columns for clarity
+  rename(host_country = host) %>%
+  
+  # Standardize country names for the host and participating countries
+  mutate(
+    host_country = ifelse(host_country == "USA", "United States", host_country), 
+    country_name = ifelse(country_name == "USA", "United States", country_name)
+  ) %>%
+  
+  # Create new columns for host and country continents
+  mutate(
+    host_continent = case_when(
+      host_country %in% americas ~ "Americas", 
+      host_country %in% europe ~ "Europe",
+      host_country %in% others ~ "Rest Of World"
+    ), 
+    country_continent = case_when(
+      country_name %in% americas ~ "Americas", 
+      country_name %in% europe ~ "Europe",
+      country_name %in% others ~ "Rest Of World"
+    )
+  )
 ```
 
-For the `wcmatches` dataset, columns were renamed, clarifying `stage_status` from `stage` and `win_outcome` from `outcome`. We refined the `stage_status` further, converting `Group` to `Group Stage` and `Final Round` to `Finals` for clarity. Redundant date information was removed, and the `win_outcome` column was expanded for clear representation of `H` (Home Win), `D` (Draw), and `A` (Away Win). We calculated the score difference, filled the `win_conditions` column with `Nil`, and extracted two features, `after_extra_time` and `penalties`.
 
 ```{r Data Cleaning 2}
+# Code block for the wcmatches dataset 
+
+# Rename columns for clarity
 wcmatches_tidy <- wcmatches %>%
-                  rename(stage_status = stage, win_outcome = outcome) %>%
-                  mutate(stage_status = ifelse(str_detect(stage_status, "Group"), "Group Stage", stage_status), 
-                         stage_status = ifelse(stage_status == "Final Round", "Final", stage_status)) %>%
-                  select(-date) %>%
-                  mutate(win_outcome = case_when(
-                         home_score == away_score ~ "Draw",
-                         win_outcome == "H" ~ "Home",
-                         win_outcome == "D" ~ "Draw",
-                         win_outcome == "A" ~ "Away")) %>%
-                  mutate(score_difference = abs(home_score - away_score), 
-                         win_conditions = replace_na(win_conditions, "Nil"),
-                         after_extra_time = ifelse(str_detect(win_conditions, "AET"), 1, 0), 
-                         penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)) 
+  rename(stage_status = stage, win_outcome = outcome) %>%
+  
+  # Standardize values in the 'stage_status' column
+  mutate(
+    stage_status = ifelse(str_detect(stage_status, "Group"), "Group Stage", stage_status), 
+    stage_status = ifelse(stage_status == "Final Round", "Final", stage_status)
+  ) %>%
+  
+  # Remove the 'date' column
+  select(-date) %>%
+  
+  # Categorize win outcomes for clear representation
+  mutate(
+    win_outcome = case_when(
+      home_score == away_score ~ "Draw",
+      win_outcome == "H" ~ "Home",
+      win_outcome == "D" ~ "Draw",
+      win_outcome == "A" ~ "Away"
+    )
+  ) %>%
+  
+  # Feature engineering: Calculate score difference and handle missing values
+  mutate(
+    score_difference = abs(home_score - away_score), 
+    win_conditions = replace_na(win_conditions, "Nil"),
+    
+    # Create binary features based on win conditions
+    after_extra_time = ifelse(str_detect(win_conditions, "AET"), 1, 0), 
+    penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)
+  )
 ```
 
+There are a few interesting statistics that we have found out with the datasets:
+
+1. The years 1942 and 1946 are not included in the dataset. Upon further research, we realise that there are no world cup matches held in 1942 and 1946 due to the second world war. This leads to a larger year difference of 12 years between the 1938 and the 1950 world cup matches, which will be reflected in some of our plots. 
+
+2. The years 1934 and 1950 had a very different system on how the world cup was held, unlike traditional world cups. A traditional world cup often consists of the group stages, round of 16, quarter finals, semifinals and finals. Typically, the stages after the group stages were played in a knockout format, i.e. the winning team would continue, while the losing team was out. However, for 1934, there was the lack of group stages while for 1950, the stages after the group stages were considered "Finals" and played just like group stages instead of the aforementioned knockout format. 
+
+``` {r Statistic 1}
+# The years where the World Cup is supposed to be held on
+supposed_years <- seq(1930, 2018, by = 4)
+
+# The years where the World Cup is actually held on, for visualization purposes
+actual_years <- wcmatches_tidy %>% 
+  select(year) %>% 
+  distinct()
+
+# Find years that do not exist in actual_years
+missing_years <- supposed_years[!(supposed_years %in% actual_years$year)]
+```
+
+``` {r Statistic 2}
+stages_1934 <- wcmatches_tidy %>% 
+  filter(year == 1934) %>%
+  select(stage_status) %>%
+  distinct()
+
+
+stages_1950 <- wcmatches_tidy %>% 
+  filter(year == 1950) %>%
+  select(stage_status) %>%
+  distinct()
+
+stages_1934
+stages_1950
+```
 These are all in preparation to answer the question: **Is the host country advantageous during the World Cup?**
 
 To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
@@ -171,8 +242,9 @@ wcmatches_tabulated <- wcmatches_wins %>%
 ### Part 2: Visualising `total_points` on a heatmap
 
 We now visualise the total points obtained on a heatmap by using `map_data("world")` to get the world coordinates. We renamed some countries to match those in the `wcmatches_tabulated` dataset. For example, the United Kingdom consisting of Scotland, Great Britain, Isle of Wight, Wales and Northern Ireland should be separated into their subregions.
+Next, we do a full join on the `world_map` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup in our map. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_map` dataset. Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
 
-```{r Heatmap 2a}
+```{r Heatmap}
 world_map <- map_data("world") %>%
              mutate(region = case_when(
                region == "USA" ~ "United States",
@@ -185,18 +257,10 @@ world_map <- map_data("world") %>%
                subregion == "Northern Ireland" ~ "Northern Ireland",
                .default = region)) %>%
              select(-subregion)
-```
 
-Next, we do a full join on the `world_map` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup in our map. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_map` dataset.
-
-```{r Heatmap 2b}
 top_countries_joined <- wcmatches_tabulated %>%
                         full_join(world_map, by = c("country" = "region"))
-```
 
-Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
-
-```{r Heatmap 2c}
 ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
   labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") +
@@ -209,7 +273,6 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
         panel.grid = element_blank(), plot.title = element_text(hjust = 0.5)) +
   ylim(-60, 90)
 ```
-
 
 ## Visualisation 2: Scatter Plot
 
@@ -259,48 +322,29 @@ wcmatches_tidy1 <- wcmatches_tidy %>%
 
 
 ## Visualisation 3: Line Plot
+Firstly, we want to find the proportion of goals that a host country has scored during their run. (Include why we want to visualize this) 
 
-We want to create a line plot that determines whether the stage status of the matches will affect the goal differences of the matches. 
+First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets
+Afterwards, we join the `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Lastly, we create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. As mentioned above, the years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line. 
 
-Solution: 
-We do this by finding the **proportion of goals that a host country has scored during their run**.
-(For example, in 1950, Brazil scored 25% of the total goals because they scored 22 goals in total, out of the 88 goals scored throughout the tournament.)
-
-For this visualisation in particular, we will want to combine both "Final" and "Third Place" as "Final Matches". This is because it is meaningless to visualise both the Final match and the Third Place match if we're looking to find the average. 
-
-There is one issue with the `wcmatches_tidy` dataset as years 1942 and 1946 are not included in the dataset. This is because there are no world cup matches held in 1942 and 1946 due to the second world war. This leads to a larger year difference of 12 years between the 1938 and the 1950 world cup matches. 
-
-First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Save this in a dataset called `viz_3_matches`.
-
-```{r Line Plot 3a}
+```{r Line Plot 3a, warning = FALSE, message = FALSE }
 viz_3_wcmatches <- wcmatches_tidy %>% 
   filter(home_team == country) %>%
   select(year, home_score) %>%
   group_by(year) %>%
   summarize(total_goals_scored = sum(home_score))
-```
-Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets subsequently. Save this in a dataset called `viz_3_worldcups`.
 
-```{r Line Plot 3b}
 viz_3_worldcups <- worldcups_tidy %>%
   rename(country = host_country) %>%
   group_by(year, country) %>% 
   summarize(goals_scored = mean(goals_scored)) %>% 
   select(year, country, goals_scored)
-```
 
-Afterwards, we join thr `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Save this in a dataset called `viz_3_data`. 
-
-```{r Line Plot 3c}
 viz_3_data <- viz_3_wcmatches %>%
   left_join(viz_3_worldcups, by = "year") %>%
   mutate(goal_proportion = (total_goals_scored / goals_scored) * 100) %>%
   select(year, country, goal_proportion)
-```
 
-Lastly, we can perform `ggplot` to create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. The years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line. 
-
-```{r Line Plot 3d}
 ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2.5) +
