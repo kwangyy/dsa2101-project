@@ -106,77 +106,65 @@ As per FIFA convention, for each match, we award 3 points to the winning team, 0
 - `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
 Firstly, we ensure that all matches ending with penalties have a `win_outcome` of `Draw`. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. We store this in a new dataset called `wcmatches_updated`.
-
-```{r Heatmap 1a}
-wcmatches_updated <- wcmatches_tidy %>%
-                     mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
-                     select(home_team, away_team, win_outcome)
-```
-
-Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`.
-
-```{r Heatmap 1b}
-wcmatches_wins <- wcmatches_updated %>%
-                  filter(win_outcome %in% c("Home", "Away")) %>%
-                  mutate(country = ifelse(win_outcome == "Home", home_team, away_team)) %>%
-                  select(country) %>%
-                  group_by(country) %>%
-                  summarise(win_points = 3 * n())
-```
-
-We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`.
-
-```{r Heatmap 1c}
-wcmatches_draws <- wcmatches_updated %>%
-                   filter(win_outcome == "Draw") %>%
-                   pivot_longer(home_team:away_team) %>%
-                   rename(country = value) %>%
-                   select(country) %>%
-                   group_by(country) %>%
-                   summarise(draw_points = n())
-```
-
+Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
 We also included countries that participated in the World Cup at least once but did not score any points over the years.
-
-```{r Heatmap 1d}
-home_countries <- wcmatches_tidy %>%
-                  select(home_team) %>%
-                  distinct() %>%
-                  rename(country = home_team)
-
-away_countries <- wcmatches_tidy %>%
-                  select(away_team) %>%
-                  distinct() %>%
-                  rename(country = away_team)
-
-wcmatches_allcountries <- rbind(home_countries, away_countries) %>%
-                          distinct()
-```
 
 Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset. Some entries in the merged dataset contain `NA` values as some countries are not in either `wcmatches_draws` or `wcmatches_wins`. We replace these `NA` values with `0` and compute the total points for each country by adding the `draw_points` and `win_points`.
 
 Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in order to merge with `map_data("world")` from the `maps` package. For East Germany, we consider it to be part of the present-day Germany although FIFA does not count their records as part of present-day Germany. We then stored it in a new dataset called `wcmatches_tabulated`.
 
-```{r Heatmap 1e}
+```{r Qn 1a Preparation}
+# Update win_outcome
+wcmatches_updated <- wcmatches_tidy %>%
+  mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
+  select(home_team, away_team, win_outcome)
+
+# Calculate win points
+wcmatches_wins <- wcmatches_updated %>%
+  filter(win_outcome %in% c("Home", "Away")) %>%
+  group_by(country = case_when(win_outcome == "Home" ~ home_team, win_outcome == "Away" ~ away_team)) %>%
+  summarise(win_points = 3 * n())
+
+# Calculate draw points
+wcmatches_draws <- wcmatches_updated %>%
+  filter(win_outcome == "Draw") %>%
+  pivot_longer(home_team:away_team) %>%
+  rename(country = value) %>%
+  select(country) %>%
+  group_by(country) %>%
+  summarise(draw_points = n())
+
+# Get unique home and away countries
+wcmatches_allcountries <- wcmatches_tidy %>%
+  select(home_team) %>%
+  distinct() %>%
+  rename(country = home_team) %>%
+  bind_rows(wcmatches_tidy %>%
+              select(away_team) %>%
+              distinct() %>%
+              rename(country = away_team)) %>%
+  distinct()
+
+# Tabulate the world cup matches
 wcmatches_tabulated <- wcmatches_wins %>%
-                       full_join(wcmatches_draws, by = "country") %>%
-                       full_join(wcmatches_allcountries, by = "country") %>%
-                       mutate(win_points = replace_na(win_points, 0),
-                              draw_points = replace_na(draw_points, 0),
-                              total_points = win_points + draw_points) %>% 
-                       select(country, total_points) %>%
-                       mutate(country = case_when(
-                         country == "West Germany" ~ "Germany",
-                         country == "East Germany" ~ "Germany",
-                         country == "Soviet Union" ~ "Russia",
-                         country == "Yugoslavia" ~ "Serbia",
-                         country == "FR Yugoslavia" ~ "Serbia",
-                         country == "Czechoslovakia" ~ "Czech Republic",
-                         country == "Dutch West Indies" ~ "Indonesia",
-                         country == "Zaire" ~ "Democratic Republic of the Congo",
-                         .default = country)) %>%
-                       group_by(country) %>%
-                       summarise(total_points = sum(total_points))
+  full_join(wcmatches_draws, by = "country") %>%
+  full_join(wcmatches_allcountries, by = "country") %>%
+  mutate(
+    win_points = replace_na(win_points, 0),
+    draw_points = replace_na(draw_points, 0),
+    total_points = win_points + draw_points,
+    country = case_when(
+      country %in% c("West Germany", "East Germany") ~ "Germany",
+      country %in% c("Soviet Union") ~ "Russia",
+      country %in% c("Yugoslavia", "FR Yugoslavia") ~ "Serbia",
+      country %in% c("Czechoslovakia") ~ "Czech Republic",
+      country %in% c("Dutch West Indies") ~ "Indonesia",
+      country %in% c("Zaire") ~ "Democratic Republic of the Congo",
+      TRUE ~ country
+    )
+  ) %>%
+  group_by(country) %>%
+  summarise(total_points = sum(total_points))
 ```
 
 
