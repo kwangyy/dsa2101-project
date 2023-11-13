@@ -37,11 +37,46 @@ Firstly, we read in the two datasets using the `readr` package.
 tuesdata <- tidytuesdayR::tt_load('2022-11-29')
 wcmatches <- tuesdata$wcmatches
 worldcups <- tuesdata$worldcups
-
-wcmatches
 ```
 
-After that, we performed data cleaning on both datasets. We start with the`worldcups` dataset by using the pivot_longer function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (americas), Europe (europe), and the rest of the world (others) for future visualization. For the wcmatches dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and  `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
+## Summary Statistics
+
+Here is a description of the variables from the two datasets relevant to our analysis:
+
+### `wcmatches`
+
+|variable     |class     |description |
+|:---|:---|:--------------------|
+|year          |double    | The year in which the tournament was held. |
+|country       |character | The host of that year's tournament. |
+|stage         |character | The stage of the match in the tournament. For group stage matches, the group that the teams are playing in is clearly mentioned. |
+|home_team     |character | The team assigned as the home team, playing against the away team. |
+|away_team     |character | The team assigned as the away team, playing against the home team. |
+|home_score    |double    | The number of goals scored by the home team. |
+|away_score    |double    | The number of goals scored by the away team. |
+|outcome       |character | The outcome of the game, `H` denotes a home win, `A` denotes an away win and `D` denotes a draw between the two teams. |
+|win_conditions|character | To indicate special cases of winning a match in knockout stage matches, i.e. winning in extra time or winning on penalties. |
+|winning_team  |character | The team that won the match, including in extra time or on penalties. `NA` denotes the match ending up in a draw. |
+|losing_team   |character | The team that lost the match, including in extra time or on penalties. `NA` denotes the match ending up in a draw. |
+
+
+### `worldcups`
+
+|variable     |class     |description |
+|:---|:---|:--------------------|
+|year          |double    | The year in which the tournament was held. |
+|host          |character | The host of that year's tournament, same as `country` in `wcmatches` dataset. |
+|winner        |character | The winning team of that year's tournament. |
+|second        |character | The second-placed team of that year's tournament. |
+|third         |character | The third-placed team of that year's tournament. |
+|fourth        |character | The fourth-placed team of that year's tournament. |
+|goals_scored  |double    | The total number of goals scored throughout the tournament. |
+|teams         |double    | The number of national teams participated in the tournament. |
+
+
+## Data Cleaning
+
+After that, we performed data cleaning on both datasets. We start with the`worldcups` dataset by using the pivot_longer function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (`americas`), Europe (`europe`), and the rest of the world (`others`) for future visualization. For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
 
 ```{r Data Cleaning 1}
 # Code block for the worldcups dataset
@@ -121,9 +156,9 @@ wcmatches_tidy <- wcmatches %>%
 
 There are a few interesting statistics that we have found out with the datasets:
 
-1. The years 1942 and 1946 are not included in the dataset. Upon further research, we realise that there are no world cup matches held in 1942 and 1946 due to the second world war. This leads to a larger year difference of 12 years between the 1938 and the 1950 world cup matches, which will be reflected in some of our plots. 
+1. The years 1942 and 1946 are not included in the dataset. Upon further research, we realise that there are no World Cup matches held in 1942 and 1946 due to the Second World War (Marcotti, 2014). This leads to a larger year difference of 12 years between the 1938 and the 1950 World Cup matches, which will be reflected in some of our plots.
 
-2. The years 1934 and 1950 had a very different system on how the world cup was held, unlike traditional world cups. A traditional world cup often consists of the group stages, round of 16, quarter finals, semifinals and finals. Typically, the stages after the group stages were played in a knockout format, i.e. the winning team would continue, while the losing team was out. However, for 1934, there was the lack of group stages while for 1950, the stages after the group stages were considered "Finals" and played just like group stages instead of the aforementioned knockout format. 
+2. The years 1934 and 1950 had a very different system on how the World Cup was held, unlike traditional World Cups (Topend Sports, n.d.). A traditional World Cup often consists of the Group Stages, Round of 16, Quarterfinals, Semifinals and Finals. Typically, the stages after the group stages were played in a knockout format, i.e. the winning team would continue, while the losing team was eliminated. However, for 1934, there was the lack of group stages while for 1950, the stages after the group stages were considered "Finals" and played just like group stages instead of the aforementioned knockout format.
 
 ``` {r Statistic 1}
 # The years where the World Cup is supposed to be held on
@@ -163,7 +198,7 @@ To answer our question, we prepared three visualisations: a heatmap, a scatterpl
 
 We want to create a heatmap showcasing the total points across all World Cup matches for every country. We will split this process into two parts:
 1. Preparing the data to tabulate the all-time total points for each country.
-2. Plotting the points on the heatmap
+2. Plotting the points on the heatmap.
 
 ### Part 1: Preparing the Data
 
@@ -177,6 +212,7 @@ As per FIFA convention, for each match, we award 3 points to the winning team, 0
 - `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
 Firstly, we ensure that all matches ending with penalties have a `win_outcome` of `Draw`. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. We store this in a new dataset called `wcmatches_updated`.
+
 Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
 We also included countries that participated in the World Cup at least once but did not score any points over the years.
 
@@ -216,7 +252,7 @@ wcmatches_allcountries <- wcmatches_tidy %>%
               rename(country = away_team)) %>%
   distinct()
 
-# Tabulate the world cup matches
+# Tabulate the World Cup matches
 wcmatches_tabulated <- wcmatches_wins %>%
   full_join(wcmatches_draws, by = "country") %>%
   full_join(wcmatches_allcountries, by = "country") %>%
@@ -242,6 +278,7 @@ wcmatches_tabulated <- wcmatches_wins %>%
 ### Part 2: Visualising `total_points` on a heatmap
 
 We now visualise the total points obtained on a heatmap by using `map_data("world")` to get the world coordinates. We renamed some countries to match those in the `wcmatches_tabulated` dataset. For example, the United Kingdom consisting of Scotland, Great Britain, Isle of Wight, Wales and Northern Ireland should be separated into their subregions.
+
 Next, we do a full join on the `world_map` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup in our map. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_map` dataset. Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
 
 ```{r Heatmap}
@@ -360,10 +397,16 @@ ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
 # Discussion
 From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
-Something about host country's performance
+Through our visualisations, we aim to provide insights into a host country's performance.
 
+For the first plot, we realise that the countries with the highest points have generally hosted the World Cup at least once (Brazil in 1950 and 2014, Germany in 1974 and 2006, Italy in 1934, Argentina in 1978) and have obtained higher total points than countries that have never hosted the World Cup before. [plot needs to be refined to say this...]
 
 # References
-- R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
-- USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
+R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
+
+Marcotti, G. (2014, May 30). 1950 World Cup unlike any other. ESPN.Com. https://www.espn.com/soccer/story/_/id/37364595/a-tournament-unlike-other
+
+FIFA World Cup Formats. (n.d.). Topend Sports. Retrieved 17 November 2023, from https://www.topendsports.com/events/worldcupsoccer/formats.htm
+
+USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
 
