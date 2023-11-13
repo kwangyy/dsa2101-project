@@ -227,7 +227,46 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
 
 Host country performance: Avg number of wins when they are not the host vs when they are the host 
 ```{r Scatter}
+# Group stage matches
+wc_groupstage_matches <- wcmatches_tidy %>%
+  filter(stage_status == 'Group Stage', country == home_team) %>%
+  group_by(year, country) %>%
+  summarise(group_stage_matches_played = n())
 
+wc_groupstage_matches
+
+# Non-group stage, non-1950
+wc_elimstage_matches <- wcmatches_tidy %>%
+  filter(year != '1950', stage_status != 'Group Stage') %>%
+  group_by(year, country) %>%
+  summarise(elim_matches_played = n_distinct(stage_status))
+
+# Non-group stage, 1950
+wc_elimstage_matches1 <- wcmatches_tidy %>%
+  filter(year == '1950', stage_status != 'Group Stage', country == home_team) %>%
+  group_by(year, country) %>%
+  summarise(elim_matches_played = n()) %>%
+  bind_rows(wc_elimstage_matches)
+
+# Merge group stage and non-group stage
+wc_total_matches <- wc_groupstage_matches %>%
+  full_join(wc_elimstage_matches1, by = c('year', 'country')) %>%
+  replace_na(list(group_stage_matches_played = 0)) %>%
+  mutate(total_possible_matches = group_stage_matches_played + elim_matches_played) %>%
+  select(country, total_possible_matches) %>%
+  group_by(country) %>%
+  summarise(total_possible = sum(total_possible_matches))
+
+#proportion
+wcmatches_tidy1 <- wcmatches_tidy %>%
+  filter(country == home_team, win_outcome == "Home") %>%
+  select(year, country, stage_status, home_team, win_outcome) %>%
+  group_by(country) %>%
+  summarise(matches_won_hometeam = n()) %>%
+  left_join(wc_total_matches, by = 'country') %>%
+  group_by(country) %>%
+  summarise(proportion_win = round(matches_won_hometeam * 100 / total_possible, 2)) %>%
+  replace_na(list(proportion_win = 0))
 ```
 
 
