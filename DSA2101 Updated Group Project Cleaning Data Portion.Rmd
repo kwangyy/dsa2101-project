@@ -355,46 +355,40 @@ wcmatches_tidy1 <- wcmatches_tidy %>%
   replace_na(list(proportion_win = 0))
 
 # val code 
-wcmatches_away <- wcmatches_tidy %>%
-  filter(stage_status == 'Group Stage')%>%
-  filter(country != home_team)%>%
-  group_by(year,country,away_team)%>%
-  summarise(groupstage_matches = n())
-
-wc_elimstage_away <- wcmatches_tidy %>%
-  filter(year != 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year,country,away_team)%>%
-  summarize(elimstage_matches = n_distinct(stage_status))
-
-wc_elimstage_away1 <- wcmatches_tidy%>%
-  filter(year == 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year,country,away_team)%>%
-  summarise(elimstage_matches = n())%>%
-  bind_rows(wc_elimstage_away)
-
-wc_total_matches1 <- wcmatches_away %>%
-  left_join(wc_elimstage_away1, by = c("year", "country", "away_team"))%>%
-  replace_na(list(elimstage_matches = 0))%>%
-  mutate(total_possible_matches = groupstage_matches + elimstage_matches)%>%
-  select(country,total_possible_matches)%>%
-  group_by(country)%>%
-  summarise(total_possible = sum(total_possible_matches))
-
 wcmatches_tidy2 <- wcmatches_tidy %>%
-  filter(country != home_team)%>%
-  select(year,country,stage_status,away_team,win_outcome)%>%
-  filter(win_outcome == "Away")%>%
-  group_by(year,country)%>%
-  summarise(matches_won_awayteam = n())%>%
-  left_join(wc_total_matches1, by = 'country') %>%
+  filter(country == home_team, win_outcome == "Home") %>%
+  select(year, country, stage_status, home_team, win_outcome) %>%
   group_by(country) %>%
-  summarise(proportion_win = sum(round(matches_won_awayteam*100/total_possible,2)))
+  summarise(matches_won_hometeam = n())
 
-wcmatches_tidy2
+
+wcmatches_tidy3 <- wcmatches_tidy%>%
+  group_by(winning_team)%>%
+  select(year,country,stage_status,away_team,win_outcome,winning_team)%>%
+  summarise(actual_win = n())%>%
+  left_join(wcmatches_tidy2, by = c('winning_team' = 'country'))%>%
+  na.omit()%>%
+  mutate(away_win = actual_win - matches_won_hometeam ) %>%
+  left_join(wcmatches_tidy1, by = c('winning_team' = 'country'))%>%
+  mutate(proportion_away_win = round(away_win/actual_win * 100,2))%>%
+  select(winning_team, proportion_away_win)
+  
+  
+
+combine_data <- wcmatches_tidy3%>%
+  left_join(wcmatches_tidy1, by =c('winning_team'= 'country'))
+
+
+ggplot(data = combine_data, aes(x = proportion_away_win, y = proportion_win))+
+  geom_point()+
+  geom_text(aes(label = winning_team), hjust= 0.5,vjust = -0.5,angle = 0,size = 3) +
+  ylim(0,110)+
+  geom_abline(color = 'red',linetype=2) +
+  labs(title = 'Host Country Performance VS when Away',
+       x = "Proportion of Win when Away",
+       y = "Proportion of Win at Home")+
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
 
 
