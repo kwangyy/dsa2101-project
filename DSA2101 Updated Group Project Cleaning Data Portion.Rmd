@@ -370,14 +370,45 @@ wc_total_matches <- wc_groupstage_matches %>%
 
 #proportion
 wcmatches_tidy1 <- wcmatches_tidy %>%
-  filter(country == home_team, win_outcome == "Home") %>%
+  filter(country == home_team, country == winning_team) %>%
   select(year, country, stage_status, home_team, win_outcome) %>%
   group_by(country) %>%
-  summarise(matches_won_hometeam = n()) %>%
+  summarise(host_wins = n())
+
+wc_host_wins <- wcmatches_tidy1 %>%
   left_join(wc_total_matches, by = 'country') %>%
   group_by(country) %>%
-  summarise(proportion_win = round(matches_won_hometeam * 100 / total_possible, 2)) %>%
+  summarise(host_win = round(host_wins * 100 / total_possible, 2)) %>%
   replace_na(list(proportion_win = 0))
+
+wc_not_host_wins <- wcmatches_tidy %>%
+  group_by(winning_team) %>%
+  summarise(total_wins = n()) %>%
+  rename(country = winning_team) %>%
+  full_join(wcmatches_tidy1) %>%
+  replace_na(list(host_wins = 0)) %>%
+  mutate(not_host_wins = total_wins - host_wins) %>%
+  select(country, not_host_wins)
+
+home_matches_played <- wcmatches_tidy %>%
+  filter(country != home_team) %>%
+  group_by(home_team) %>%
+  summarise(home_played = n()) %>%
+  rename(country = home_team)
+
+away_matches_played <- wcmatches_tidy %>%
+  group_by(away_team) %>%
+  summarise(away_played = n()) %>%
+  rename(country = away_team)
+
+wc_win_prop_combine <- home_matches_played %>%
+  full_join(away_matches_played, by = 'country') %>%
+  full_join(wc_not_host_wins, by = 'country') %>%
+  replace_na(list(host_wins = 0)) %>%
+  mutate(total_played = home_played + away_played) %>%
+  group_by(country) %>%
+  summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
+  right_join(prop_host, by = 'country')
 
 # val code 
 wcmatches_away <- wcmatches_tidy %>%
