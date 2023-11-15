@@ -313,7 +313,32 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
 
 ## Visualisation 2: Scatter Plot
 
-Host country performance: Avg number of wins when they are not the host vs when they are the host 
+We want to create a scatter plot to compare the proportion of games a country wins when they are the host of the world cup to when they are not the host. We need to find 2 main values to tabulate the proportion of wins:
+1. Total possible matches a country could have played regardless of when they were eliminated
+2. Total wins the country actually achieved when hosting 
+
+Afterwards, we will also tabulate the average wins for each country when playing away from home. We will represent the relationship with a linear regression line.
+
+## Part 1: Total possible matches
+
+### Group stage
+Firstly, we filter for the rows of `wcmatches_tidy` dataset where the home team is the host country and the stage status being group stage. As each country in every world cup could play the same number of games in the group stages, we can simply group by year and country then summarise to find the total matches played by each host country every year, stored as `wc_groupstage_matches`. We needed to group by year as a country could have hosted a world cup more than once.
+
+### Non-Group stage
+As the host country might have been eliminated in the group stages or along the non-group stage leading to the finals, the number of games played by the host would not necessarily equal to total possible matches they could have played. As such, we would need to find the number of distinct non-group stages (e.g. Semi-Finals, Finals) for each edition of the World Cup, with the assumption that each stage can only consists of one match per team. The assumption is fair given the standard non-group stage structure of the World Cup except for the 1950 edition, which we will tabulate separately.
+
+Firstly, we filter out the year 1950 and group stages from `wcmatches_tidy`. Similar with the group stage, we group the data by year and country, then summarise using the n_distinct function on stage_status. This provides us the number of unique non-group stage stages of each world cup which equals to the total possible matches a country could have played.This data is stored as `wc_elimstage_matches`.
+
+Secondly, for the 1950 World Cup edition, the non-group stage structure is similar to the group stage of other world cups. Therefore, we tabulate the data in a similar way as that used for the group stage matches. We filter for year 1950 from `wcmatches_tidy`, non-group stage matches whereby the home team is the host country. We group by year and country then summarise the total number of matches played by the host country which equals total possible matches. Lastly we bind the rows of this data with `wc_elimstage_matches` to get a complete dataset for the non-group stage total possible matches as `wc_elimstage_matches1`.
+
+### Merging of Data
+Lastly, we merge the `wc_groupstage_matches` with `wc_elimstage_matches1` using full join by year and country as some World Cup editions do not have a group stage. For the World Cups that do not have a group stage, we replaced the number of group stage matches played as 0. We then summed up the number of group stage and non-group stage matches to find the total possible matches for every world cup. We summarised the data by country to combine different world cups with the same host.
+
+### Part 2: Total wins achieved
+Now that we have the total possible matches, we need to find the number of watches the host country actually won. We first filter `wcmatches_tidy` for the rows in which the host country is the home team and that the home team won the match. We then select the necessary columns, group the data by country and summarise the data to find the total matches won by each country. We then merge this dataset with `wc_total_matches` by countries to combine the total wins and total possible matches. The proportion of wins is then given by the ratio of total wins to total possible matches.
+
+### Part 3: Average wins when playing away
+
 ```{r Scatter}
 # Group stage matches
 wc_groupstage_matches <- wcmatches_tidy %>%
@@ -392,9 +417,22 @@ wcmatches_tidy2 <- wcmatches_tidy %>%
   summarise(matches_won_awayteam = n())%>%
   left_join(wc_total_matches1, by = 'country') %>%
   group_by(country) %>%
-  summarise(proportion_win = sum(round(matches_won_awayteam*100/total_possible,2)))
+  summarise(proportion_win_away = sum(round(matches_won_awayteam*100/total_possible,2)))
 
-wcmatches_tidy2
+combine_data <- wcmatches_tidy2%>%
+  left_join(wcmatches_tidy1, by = 'country')
+
+
+ggplot(data = combine_data, aes(x = proportion_win_away, y = proportion_win))+
+  geom_point()+
+  geom_text(aes(label = country), hjust= 0.5,vjust = -0.5,angle = -30,size = 3) +
+  ylim(0,110)+
+  geom_abline(color = 'red',linetype=2) +
+  labs(title = 'Host Country Performance VS when Away',
+       x = "Proportion of Win when Away",
+       y = "Proportion of Win at Home")+
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
 
 
