@@ -23,10 +23,10 @@ library(tidytuesdayR)
 library(readr)
 library(tidyverse)
 library(stringr)
-library(ggplot2)
 library(forcats)
 library(maps)
 library(ggthemes)
+library(ggrepel)
 ```
 
 # Data cleaning and summary
@@ -292,8 +292,8 @@ world_map <- map_data("world") %>%
                subregion == "Isle of Wight" ~ "England",
                subregion == "Wales" ~ "Wales",
                subregion == "Northern Ireland" ~ "Northern Ireland",
-               .default = region)) %>%
-             select(-subregion)
+               .default = region)) #%>%
+             #select(-subregion)
 
 top_countries_joined <- wcmatches_tabulated %>%
                         full_join(world_map, by = c("country" = "region"))
@@ -313,7 +313,32 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
 
 ## Visualisation 2: Scatter Plot
 
-Host country performance: Avg number of wins when they are not the host vs when they are the host 
+We want to create a scatter plot to compare the proportion of games a country wins when they are the host of the world cup to when they are not the host. We need to find 2 main values to tabulate the proportion of wins:
+1. Total possible matches a country could have played regardless of when they were eliminated.
+2. Total wins the country actually achieved when hosting.
+
+Afterwards, we will also tabulate the average wins for each country when playing away from home. We will represent the relationship with a linear regression line.
+
+### Part 1: Total possible matches
+
+#### Group Stage
+Firstly, we filter for the rows of `wcmatches_tidy` dataset where the home team is the host country and the stage status being group stage. As each country in every world cup could play the same number of games in the group stages, we can simply group by year and country then summarise to find the total matches played by each host country every year, stored as `wc_groupstage_matches`. We needed to group by year as a country could have hosted a world cup more than once.
+
+#### Knockout Stages
+As the host country might have been eliminated in the group stages or along the knockout stages leading to the finals, the number of games played by the host would not necessarily equal to total possible matches they could have played. As such, we would need to find the number of distinct knockout stages (e.g. Semi-Finals, Finals) for each edition of the World Cup, with the assumption that each stage can only consists of one match per team. The assumption is fair given the standard knockout stage structure of the World Cup except for the 1950 edition, which we will tabulate separately.
+
+Firstly, we filter out the year 1950 and group stages from `wcmatches_tidy`. Similar with the group stage, we group the data by year and country, then summarise using the n_distinct function on stage_status. This provides us the number of unique knockout stage stages of each world cup which equals to the total possible matches a country could have played. This data is stored as `wc_elimstage_matches`.
+
+Secondly, for the 1950 World Cup edition, the knockout stage structure is similar to the group stage of other World Cups. Therefore, we tabulate the data in a similar way as that used for the group stage matches. We filter for year 1950 from `wcmatches_tidy`, knockout stage matches whereby the home team is the host country. We group by year and country then summarise the total number of matches played by the host country which equals total possible matches. Lastly we bind the rows of this data with `wc_elimstage_matches` to get a complete dataset for the knockout stage total possible matches as `wc_elimstage_matches1`.
+
+#### Merging of Data
+Lastly, we merge the `wc_groupstage_matches` with `wc_elimstage_matches1` using full join by year and country as some World Cup editions do not have a group stage. For the World Cups that do not have a group stage, we replaced the number of group stage matches played as 0. We then summed up the number of group stage and knockout stage matches to find the total possible matches for every world cup. We summarised the data by country to combine different world cups with the same host.
+
+### Part 2: Total wins achieved
+Now that we have the total possible matches, we need to find the number of watches the host country actually won. We first filter `wcmatches_tidy` for the rows in which the host country is the home team and that the home team won the match. We then select the necessary columns, group the data by country and summarise the data to find the total matches won by each country. We then merge this dataset with `wc_total_matches` by countries to combine the total wins and total possible matches. The proportion of wins is then given by the ratio of total wins to total possible matches.
+
+### Part 3: Average wins when playing away
+
 ```{r Scatter}
 # Group stage matches
 wc_groupstage_matches <- wcmatches_tidy %>%
@@ -321,20 +346,20 @@ wc_groupstage_matches <- wcmatches_tidy %>%
   group_by(year, country) %>%
   summarise(group_stage_matches_played = n())
 
-# Non-group stage, non-1950
+# Knockout stage, non-1950
 wc_elimstage_matches <- wcmatches_tidy %>%
   filter(year != '1950', stage_status != 'Group Stage') %>%
   group_by(year, country) %>%
   summarise(elim_matches_played = n_distinct(stage_status))
 
-# Non-group stage, 1950
+# Knockout stage, 1950
 wc_elimstage_matches1 <- wcmatches_tidy %>%
   filter(year == '1950', stage_status != 'Group Stage', country == home_team) %>%
   group_by(year, country) %>%
   summarise(elim_matches_played = n()) %>%
   bind_rows(wc_elimstage_matches)
 
-# Merge group stage and non-group stage
+# Merge group stage and knockout stage
 wc_total_matches <- wc_groupstage_matches %>%
   full_join(wc_elimstage_matches1, by = c('year', 'country')) %>%
   replace_na(list(group_stage_matches_played = 0)) %>%
@@ -343,16 +368,47 @@ wc_total_matches <- wc_groupstage_matches %>%
   group_by(country) %>%
   summarise(total_possible = sum(total_possible_matches))
 
-#proportion
+# Proportion
 wcmatches_tidy1 <- wcmatches_tidy %>%
-  filter(country == home_team, win_outcome == "Home") %>%
+  filter(country == home_team, country == winning_team) %>%
   select(year, country, stage_status, home_team, win_outcome) %>%
   group_by(country) %>%
-  summarise(matches_won_hometeam = n()) %>%
+  summarise(host_wins = n())
+
+wc_host_wins <- wcmatches_tidy1 %>%
   left_join(wc_total_matches, by = 'country') %>%
   group_by(country) %>%
-  summarise(proportion_win = round(matches_won_hometeam * 100 / total_possible, 2)) %>%
+  summarise(host_win = round(host_wins * 100 / total_possible, 2)) %>%
   replace_na(list(proportion_win = 0))
+
+wc_not_host_wins <- wcmatches_tidy %>%
+  group_by(winning_team) %>%
+  summarise(total_wins = n()) %>%
+  rename(country = winning_team) %>%
+  full_join(wcmatches_tidy1) %>%
+  replace_na(list(host_wins = 0)) %>%
+  mutate(not_host_wins = total_wins - host_wins) %>%
+  select(country, not_host_wins)
+
+home_matches_played <- wcmatches_tidy %>%
+  filter(country != home_team) %>%
+  group_by(home_team) %>%
+  summarise(home_played = n()) %>%
+  rename(country = home_team)
+
+away_matches_played <- wcmatches_tidy %>%
+  group_by(away_team) %>%
+  summarise(away_played = n()) %>%
+  rename(country = away_team)
+
+wc_win_prop_combine <- home_matches_played %>%
+  full_join(away_matches_played, by = 'country') %>%
+  full_join(wc_not_host_wins, by = 'country') %>%
+  replace_na(list(host_wins = 0)) %>%
+  mutate(total_played = home_played + away_played) %>%
+  group_by(country) %>%
+  summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
+  right_join(prop_host, by = 'country')
 
 # val code 
 wcmatches_tidy2 <- wcmatches_tidy %>%
@@ -388,17 +444,73 @@ ggplot(data = combine_data, aes(x = proportion_away_win, y = proportion_win))+
        x = "Proportion of Win when Away",
        y = "Proportion of Win at Home")+
   theme_minimal()+
+=======
+wcmatches_away <- wcmatches_tidy %>%
+  filter(stage_status == 'Group Stage')%>%
+  filter(country != home_team)%>%
+  group_by(year, country, away_team)%>%
+  summarise(groupstage_matches = n())
+
+wc_elimstage_away <- wcmatches_tidy %>%
+  filter(year != 1950)%>%
+  filter(country != home_team)%>%
+  filter(stage_status != 'Group Stage')%>%
+  group_by(year, country, away_team)%>%
+  summarize(elimstage_matches = n_distinct(stage_status))
+
+wc_elimstage_away1 <- wcmatches_tidy %>%
+  filter(year == 1950)%>%
+  filter(country != home_team)%>%
+  filter(stage_status != 'Group Stage')%>%
+  group_by(year, country, away_team)%>%
+  summarise(elimstage_matches = n())%>%
+  bind_rows(wc_elimstage_away)
+
+wc_total_matches1 <- wcmatches_away %>%
+  left_join(wc_elimstage_away1, by = c("year", "country", "away_team"))%>%
+  replace_na(list(elimstage_matches = 0))%>%
+  mutate(total_possible_matches = groupstage_matches + elimstage_matches)%>%
+  select(country, total_possible_matches)%>%
+  group_by(country)%>%
+  summarise(total_possible = sum(total_possible_matches))
+
+wcmatches_tidy2 <- wcmatches_tidy %>%
+  filter(country != home_team) %>%
+  select(year, country, stage_status, away_team, win_outcome) %>%
+  filter(win_outcome == "Away") %>%
+  group_by(year, country) %>%
+  summarise(matches_won_awayteam = n()) %>%
+  left_join(wc_total_matches1, by = 'country') %>%
+  group_by(country) %>%
+  summarise(proportion_win_away = sum(round(matches_won_awayteam * 100 / total_possible, 2)))
+
+combine_data <- wcmatches_tidy2 %>%
+  left_join(wcmatches_tidy1, by = 'country')
+
+
+ggplot(data = combine_data, aes(x = proportion_win_away, y = proportion_win)) +
+  geom_point() +
+  geom_text_repel(aes(label = country), hjust = 0.5, vjust = -0.5, size = 3) + #angle = -30
+  ylim(0, 110) +
+  geom_abline(color = 'red', linetype = 2) +
+  labs(title = 'Host Country Performance VS when Away',
+       x = "Proportion of Wins when Away",
+       y = "Proportion of Wins at Home") +
+  theme_minimal() +
+>>>>>>> 1d907c020fef381798ee8702d6b81c365296e233
   theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
 
 
 ## Visualisation 3: Line Plot
+
 Firstly, we want to find the proportion of goals that a host country has scored during their run. (Include why we want to visualize this) 
 
-First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets
-Afterwards, we join the `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Lastly, we create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. As mentioned above, the years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line. 
+First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets.
 
-```{r Line Plot 3a, warning = FALSE, message = FALSE }
+Afterwards, we join the `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Lastly, we create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. As mentioned above, the years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line.
+
+```{r Line Plot 3a, warning = FALSE, message = FALSE}
 viz_3_wcmatches <- wcmatches_tidy %>% 
   filter(home_team == country) %>%
   select(year, home_score) %>%
@@ -431,9 +543,10 @@ ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
 # Discussion
 From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
-Through our visualisations, we aim to provide insights into a host country's performance.
+Through our visualisations, we aim to provide insights into the different factors that may affect a country's performance at the World Cup.
 
-For the first plot, we realise that the countries with the highest points have generally hosted the World Cup at least once (Brazil in 1950 and 2014, Germany in 1974 and 2006, Italy in 1934, Argentina in 1978) and have obtained higher total points than countries that have never hosted the World Cup before. [plot needs to be refined to say this...]
+From our first visualisation (heatmap), we can observe that the most successful nations at the World Cup throughout its history are generally from Europe and South America. These countries have the highest number of points obtained across all editions of the World Cup.
+
 
 # References
 R for Data Science Community. (2022, November 29). TidyTuesday Week 48, 2022. GitHub. https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-11-29
