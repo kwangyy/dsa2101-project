@@ -171,6 +171,7 @@ actual_years <- wcmatches_tidy %>%
 
 # Find years that do not exist in actual_years
 missing_years <- supposed_years[!(supposed_years %in% actual_years$year)]
+missing_years
 ```
 
 ``` {r Statistic 2}
@@ -178,7 +179,6 @@ stages_1934 <- wcmatches_tidy %>%
   filter(year == 1934) %>%
   select(stage_status) %>%
   distinct()
-
 
 stages_1950 <- wcmatches_tidy %>% 
   filter(year == 1950) %>%
@@ -188,14 +188,12 @@ stages_1950 <- wcmatches_tidy %>%
 stages_1934
 stages_1950
 ```
-These are all in preparation to answer the question: **Is the host country advantageous during the World Cup?**
-
+These are all in preparation to answer the question: **What factors affect the performance of the world cup?**
 To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
 
 # Visualisations
 
 ## Visualisation 1: Heatmap
-
 We want to create a heatmap showcasing the total points across all World Cup matches for every country. We will split this process into two parts:
 1. Preparing the data to tabulate the all-time total points for each country.
 2. Plotting the points on the heatmap.
@@ -203,20 +201,16 @@ We want to create a heatmap showcasing the total points across all World Cup mat
 ### Part 1: Preparing the Data
 
 As per FIFA convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if it ends in a draw. There are some exceptions and here's how we rectified them:
-- Group Stage matches before the 1994 World Cup awarded 2 points for a win instead of 3 (FIFA, 2016). However, for simplicity and standardisation, we will award 3 points for a win regardless of the year.
-
-- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.
+- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.`after_extra_time` does not affect the victory/loss of the teams.
 
 - For knockout stage matches that end in penalty shootouts, we award 1 point to both teams as we consider it a draw. The outcome of the penalty shootout does not affect the points.
-  
-- `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
 Firstly, we ensure that all matches ending with penalties have a `win_outcome` of `Draw`. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. We store this in a new dataset called `wcmatches_updated`.
 
-Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
+Next, we want to store both wins and draws in a combined dataset. In order to do that, we will need two datasets that contain the points for wins and draws. we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
 We also included countries that participated in the World Cup at least once but did not score any points over the years.
 
-Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset. Some entries in the merged dataset contain `NA` values as some countries are not in either `wcmatches_draws` or `wcmatches_wins`. We replace these `NA` values with `0` and compute the total points for each country by adding the `draw_points` and `win_points`.
+Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset, replacing NA entries with 0. Lastly, we compute the total points for each country by adding the `draw_points` and `win_points`.
 
 Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in order to merge with `map_data("world")` from the `maps` package. For East Germany, we consider it to be part of the present-day Germany although FIFA does not count their records as part of present-day Germany. We then stored it in a new dataset called `wcmatches_tabulated`.
 
@@ -272,6 +266,8 @@ wcmatches_tabulated <- wcmatches_wins %>%
   ) %>%
   group_by(country) %>%
   summarise(total_points = sum(total_points))
+
+wcmatches_tabulated
 ```
 
 
@@ -496,4 +492,7 @@ Marcotti, G. (2014, May 30). 1950 World Cup unlike any other. ESPN.Com. https://
 FIFA World Cup Formats. (n.d.). Topend Sports. Retrieved 17 November 2023, from https://www.topendsports.com/events/worldcupsoccer/formats.htm
 
 USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
+
+
+
 
