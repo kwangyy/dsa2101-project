@@ -171,6 +171,7 @@ actual_years <- wcmatches_tidy %>%
 
 # Find years that do not exist in actual_years
 missing_years <- supposed_years[!(supposed_years %in% actual_years$year)]
+missing_years
 ```
 
 ``` {r Statistic 2}
@@ -178,7 +179,6 @@ stages_1934 <- wcmatches_tidy %>%
   filter(year == 1934) %>%
   select(stage_status) %>%
   distinct()
-
 
 stages_1950 <- wcmatches_tidy %>% 
   filter(year == 1950) %>%
@@ -188,14 +188,12 @@ stages_1950 <- wcmatches_tidy %>%
 stages_1934
 stages_1950
 ```
-These are all in preparation to answer the question: **Is the host country advantageous during the World Cup?**
-
+These are all in preparation to answer the question: **What factors affect the performance of the world cup?**
 To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
 
 # Visualisations
 
 ## Visualisation 1: Heatmap
-
 We want to create a heatmap showcasing the total points across all World Cup matches for every country. We will split this process into two parts:
 1. Preparing the data to tabulate the all-time total points for each country.
 2. Plotting the points on the heatmap.
@@ -203,20 +201,16 @@ We want to create a heatmap showcasing the total points across all World Cup mat
 ### Part 1: Preparing the Data
 
 As per FIFA convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if it ends in a draw. There are some exceptions and here's how we rectified them:
-- Group Stage matches before the 1994 World Cup awarded 2 points for a win instead of 3 (FIFA, 2016). However, for simplicity and standardisation, we will award 3 points for a win regardless of the year.
-
-- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.
+- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team.`after_extra_time` does not affect the victory/loss of the teams.
 
 - For knockout stage matches that end in penalty shootouts, we award 1 point to both teams as we consider it a draw. The outcome of the penalty shootout does not affect the points.
-  
-- `after_extra_time` does not affect the victory/loss of the teams. Matches that require penalties are considered a draw.
 
 Firstly, we ensure that all matches ending with penalties have a `win_outcome` of `Draw`. Afterwards, select the relevant columns: `home_team`, `away_team` and `win_outcome` to tidy the dataset further. We store this in a new dataset called `wcmatches_updated`.
 
-Next, we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
+Next, we want to store both wins and draws in a combined dataset. In order to do that, we will need two datasets that contain the points for wins and draws. we filter the `wcmatches_updated` dataset for observations where either the home or away team wins. We only keep the teams that win each match. We count the frequency of each team in the dataset and multiply this value by 3 to get the `win_points`. We store this in a dataset called `wcmatches_wins`. We do the same for matches that end in a draw. We keep both the home and away teams and combine them in a single column. We count the frequency of each team in the dataset to get the `draw_points`, as a draw gives 1 point to both teams. We store this in a dataset called `wcmatches_draws`. 
 We also included countries that participated in the World Cup at least once but did not score any points over the years.
 
-Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset. Some entries in the merged dataset contain `NA` values as some countries are not in either `wcmatches_draws` or `wcmatches_wins`. We replace these `NA` values with `0` and compute the total points for each country by adding the `draw_points` and `win_points`.
+Afterwards, we do a full join of `wcmatches_wins`, `wcmatches_draws` and `wcmatches_allcountries` to ensure all teams that ever participated in the World Cup are included in the merged dataset, replacing NA entries with 0. Lastly, we compute the total points for each country by adding the `draw_points` and `win_points`.
 
 Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in order to merge with `map_data("world")` from the `maps` package. For East Germany, we consider it to be part of the present-day Germany although FIFA does not count their records as part of present-day Germany. We then stored it in a new dataset called `wcmatches_tabulated`.
 
@@ -272,6 +266,8 @@ wcmatches_tabulated <- wcmatches_wins %>%
   ) %>%
   group_by(country) %>%
   summarise(total_points = sum(total_points))
+
+wcmatches_tabulated
 ```
 
 
@@ -339,6 +335,10 @@ Now that we have the total possible matches, we need to find the number of watch
 
 ### Part 3: Average wins when playing away
 
+
+### Part 4: Visualisation of graph
+To conclude, there is a positive relation between proportion of wins at home and proportion of wins when away. Countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
+
 ```{r Scatter}
 # Group stage matches
 wc_groupstage_matches <- wcmatches_tidy %>%
@@ -360,13 +360,10 @@ wc_elimstage_matches1 <- wcmatches_tidy %>%
   bind_rows(wc_elimstage_matches)
 
 # Merge group stage and knockout stage
-wc_total_matches <- wc_groupstage_matches %>%
-  full_join(wc_elimstage_matches1, by = c('year', 'country')) %>%
-  replace_na(list(group_stage_matches_played = 0)) %>%
-  mutate(total_possible_matches = group_stage_matches_played + elim_matches_played) %>%
-  select(country, total_possible_matches) %>%
-  group_by(country) %>%
-  summarise(total_possible = sum(total_possible_matches))
+wc_total_matches <- wcmatches_tidy%>%
+  group_by(winning_team)%>%
+  summarise(total_win = n())%>%
+  rename('country' = 'winning_team')
 
 # Total matches played per host country
 wc_host_matches_played <- wcmatches_tidy %>%
@@ -389,7 +386,7 @@ wcmatches_tidy1 <- wcmatches_tidy %>%
 wc_host_wins <- wcmatches_tidy1 %>%
   left_join(wc_total_matches, by = 'country') %>%
   group_by(country) %>%
-  summarise(host_win = round(host_wins * 100 / total_possible, 2)) %>%
+  summarise(host_win = round(host_wins * 100 / total_win, 2)) %>%
   replace_na(list(proportion_win = 0))
 
 # Wins when country is not host
@@ -419,18 +416,11 @@ away_matches_played <- wcmatches_tidy %>%
 wc_win_prop_combine <- home_matches_played %>%
   full_join(away_matches_played, by = 'country') %>%
   full_join(wc_not_host_wins, by = 'country') %>%
-  replace_na(list(host_wins = 0)) %>%
+  replace_na(list(not_host_wins = 0)) %>%
   mutate(total_played = home_played + away_played) %>%
   group_by(country) %>%
   summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
-  right_join(prop_host, by = 'country')
-
-# val code 
-wcmatches_tidy2 <- wcmatches_tidy %>%
-  filter(country == home_team, win_outcome == "Home") %>%
-  select(year, country, stage_status, home_team, win_outcome) %>%
-  group_by(country) %>%
-  summarise(matches_won_hometeam = n())
+  right_join(wc_host_wins, by = 'country')
 
 
 wcmatches_tidy3 <- wcmatches_tidy%>%
@@ -504,7 +494,12 @@ combine_data <- wcmatches_tidy2 %>%
 ggplot(data = combine_data, aes(x = proportion_win_away, y = host_wins)) +
   geom_point() +
   geom_text_repel(aes(label = country), hjust = 0.5, vjust = -0.5, size = 3) + #angle = -30
-  ylim(0, 110) +
+  ylim(0, 110)
+
+ggplot(data = wc_win_prop_combine, aes(y= not_host_wins_prop,x = host_win))+
+  geom_point()+
+  geom_text(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
+  ylim(0,80)+
   geom_abline(color = 'red', linetype = 2) +
   labs(title = 'Host Country Performance VS when Away',
        x = "Proportion of Wins when Away",
@@ -568,4 +563,7 @@ Marcotti, G. (2014, May 30). 1950 World Cup unlike any other. ESPN.Com. https://
 FIFA World Cup Formats. (n.d.). Topend Sports. Retrieved 17 November 2023, from https://www.topendsports.com/events/worldcupsoccer/formats.htm
 
 USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
+
+
+
 
