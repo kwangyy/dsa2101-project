@@ -339,6 +339,10 @@ Now that we have the total possible matches, we need to find the number of watch
 
 ### Part 3: Average wins when playing away
 
+
+### Part 4: Visualisation of graph
+To conclude, there is a positive relation between proportion of wins at home and proportion of wins when away. Countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
+
 ```{r Scatter}
 # Group stage matches
 wc_groupstage_matches <- wcmatches_tidy %>%
@@ -422,6 +426,7 @@ wc_win_prop_combine <- home_matches_played %>%
   summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
   right_join(wc_host_wins, by = 'country')
 
+
 ggplot(data = wc_win_prop_combine, aes(y= not_host_wins_prop,x = host_win))+
   geom_point()+
   geom_text(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
@@ -433,97 +438,8 @@ ggplot(data = wc_win_prop_combine, aes(y= not_host_wins_prop,x = host_win))+
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
-```
-<<<<<<< HEAD
-wcmatches_tidy3 <- wcmatches_tidy%>%
-  group_by(winning_team)%>%
-  select(year,country,stage_status,away_team,win_outcome,winning_team)%>%
-  summarise(actual_win = n())%>%
-  left_join(wcmatches_tidy2, by = c('winning_team' = 'country'))%>%
-  na.omit()%>%
-  mutate(away_win = actual_win - matches_won_hometeam ) %>%
-  left_join(wcmatches_tidy1, by = c('winning_team' = 'country'))%>%
-  mutate(proportion_away_win = round(away_win/actual_win * 100,2))%>%
-  select(winning_team, proportion_away_win)
-=======
-  
-  
->>>>>>> 79fcfa05ce90d3416c54ae6a6ae5e39a0b30ebe6
-
-combine_data <- wc_win_prop_combine%>%
-  left_join(wc_host_wins, by =c('country'))%>%
-  rename('host_win_prop' = 'host_win.x')%>%
-  select(country,not_host_wins_prop, host_win_prop)
 
 
-<<<<<<< HEAD
-ggplot(data = combine_data, aes(x = proportion_away_win, y = host_wins))+
-=======
-ggplot(data = combine_data, aes(x = not_host_wins_prop, y = host_win_prop))+
->>>>>>> 79fcfa05ce90d3416c54ae6a6ae5e39a0b30ebe6
-  geom_point()+
-  geom_text(aes(label = country), hjust= 0.6,vjust = -0.5,angle = 45,size = 3)+
-  ylim(0,110)+
-  geom_abline(color = 'red',linetype=2) +
-  labs(title = 'Host Country Performance VS when Away',
-       x = "Proportion of Win when Away",
-       y = "Proportion of Win at Home")+
-  theme_minimal()
-
-wcmatches_away <- wcmatches_tidy %>%
-  filter(stage_status == 'Group Stage')%>%
-  filter(country != home_team)%>%
-  group_by(year, country, away_team)%>%
-  summarise(groupstage_matches = n())
-
-wc_elimstage_away <- wcmatches_tidy %>%
-  filter(year != 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year, country, away_team)%>%
-  summarize(elimstage_matches = n_distinct(stage_status))
-
-wc_elimstage_away1 <- wcmatches_tidy %>%
-  filter(year == 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year, country, away_team)%>%
-  summarise(elimstage_matches = n())%>%
-  bind_rows(wc_elimstage_away)
-
-wc_total_matches1 <- wcmatches_away %>%
-  left_join(wc_elimstage_away1, by = c("year", "country", "away_team"))%>%
-  replace_na(list(elimstage_matches = 0))%>%
-  mutate(total_possible_matches = groupstage_matches + elimstage_matches)%>%
-  select(country, total_possible_matches)%>%
-  group_by(country)%>%
-  summarise(total_possible = sum(total_possible_matches))
-
-wcmatches_tidy2 <- wcmatches_tidy %>%
-  filter(country != home_team) %>%
-  select(year, country, stage_status, away_team, win_outcome) %>%
-  filter(win_outcome == "Away") %>%
-  group_by(year, country) %>%
-  summarise(matches_won_awayteam = n()) %>%
-  left_join(wc_total_matches1, by = 'country') %>%
-  group_by(country) %>%
-  summarise(proportion_win_away = sum(round(matches_won_awayteam * 100 / total_possible, 2)))
-
-combine_data <- wcmatches_tidy2 %>%
-  left_join(wcmatches_tidy1, by = 'country')
-
-
-ggplot(data = combine_data, aes(x = proportion_win_away, y = host_wins)) +
-  geom_point() +
-  geom_text_repel(aes(label = country), hjust = 0.5, vjust = -0.5, size = 3) + #angle = -30
-  ylim(0, 110) +
-  geom_abline(color = 'red', linetype = 2) +
-  labs(title = 'Host Country Performance VS when Away',
-       x = "Proportion of Wins when Away",
-       y = "Proportion of Wins at Home") +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5, size = 20))
-```
 
 
 ## Visualisation 3: Line Plot
