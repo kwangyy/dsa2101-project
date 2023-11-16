@@ -34,7 +34,7 @@ library(ggthemes)
 library(ggrepel)
 ```
 
-# Data cleaning and summary
+# Data Cleaning and Summary
 
 Firstly, we read in the two datasets using the `readr` package.
 
@@ -80,7 +80,9 @@ Here is a description of the variables from the two datasets relevant to our ana
 
 ## Data Cleaning
 
-We performed data cleaning on both datasets. We start with the `worldcups` dataset by using the `pivot_longer` function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (`americas`), Europe (`europe`), and the rest of the world (`others`) for future visualization. For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
+We performed data cleaning on both datasets. We start with the `worldcups` dataset by using the `pivot_longer` function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (`americas`), Europe (`europe`), and the rest of the world (`others`) for future visualization.
+
+For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
 
 ```{r Data Cleaning for `worldcups.csv`}
 # Code block for the worldcups dataset
@@ -217,7 +219,7 @@ We focused on rectifying the exceptions as mentioned above, and tabulate the poi
 
 Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in preparation for our heatmap using `map_data("world")` from the `maps` package (in Part 2).
 
-```{r Qn 1a Preparation}
+```{r Heatmap Preparation}
 # Update win_outcome
 wcmatches_updated <- wcmatches_tidy %>%
   mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
@@ -264,9 +266,7 @@ wcmatches_tabulated <- wcmatches_wins %>%
       country %in% c("Czechoslovakia") ~ "Czech Republic",
       country %in% c("Dutch West Indies") ~ "Indonesia",
       country %in% c("Zaire") ~ "Democratic Republic of the Congo",
-      TRUE ~ country
-    )
-  ) %>%
+      TRUE ~ country)) %>%
   group_by(country) %>%
   summarise(total_points = sum(total_points))
 
@@ -548,9 +548,8 @@ ggplot(data=wc_goals_scored, aes(x=year, y=avg_goals_per_match, group = stage_st
 # Discussion
 From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
-Through our visualisations, we aim to provide insights into the different factors that may affect a country's performance at the World Cup. Various factors include the continent of the country and whether the country has been a host in the world cup. 
-
-From our first visualisation (heatmap), we can observe that the most successful nations at the World Cup throughout its history are generally from Europe and South America. This is represented by the orange and red fill colours of the countries in Europe and South America (eg: Brazil, Italy, Germany etc.) where the total points obtained are higher. Countries in other continents (North America, Asia, Africa and Oceania) have lighter shades of orange and yellow, where the total points obtained are lower. A possible reason for the better performance in Europe and South American countires is that football might be the primary sport for these nations and more players from Europe and South America have been training hard in football for many years. Due to the experience in football with consistent training, their skill level in football are higher and there is a higher probability for the European and South American countries to perform better in the world cup, leading to higher points. Another trend observed from the heatmap is that for South America and Europe, almost all nations have participated in the world cup (have a certain fixed colour) but for the other continents, many nations do not participate in the world cup (a lot of countries that are filled white). A possibility is that since Europe and South America have better teams, they deserve more berths and are allocated more slots to the confederation. 
+Through our visualisations, we aim to provide insights into the different factors that may affect a country's performance at the World Cup. Various factors include the continent of the country and whether the country has been a host in the World Cup. 
+From our first visualisation (heatmap), we can observe that the most successful nations at the World Cup throughout its history are generally from Europe and South America. This is represented by the orange and red fill colours of the countries in Europe and South America (e.g. Brazil, Italy, Germany) where the total points obtained are higher. Countries in other continents (North America, Asia, Africa and Oceania) have lighter shades of orange and yellow, where the total points obtained are lower. A possible reason for the better performance in European and South American countries is that football might be the primary sport for these nations and more players from Europe and South America have been training hard in football for many years. Due to the long history of these countries in football, their skill level in football is generally higher and there is a higher probability that European and South American countries will perform better in the World Cup, leading to higher points. Another trend observed from the heatmap is that for South America and Europe, almost all nations have participated in the World Cup (have a certain fixed colour) but for the other continents, many nations have not participated in the World Cup (a lot of countries that are filled white). A possibility is that since Europe and South America have better teams, they deserve more berths and are allocated more slots to the confederation (Lopez, 2022).
 
 From our second visualisation (scatterplot), we can observe that 
 
@@ -566,6 +565,7 @@ FIFA World Cup Formats. (n.d.). Topend Sports. Retrieved 17 November 2023, from 
 
 USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
 
+Lopez, G. (2022, December 13). The power of history. The New York Times. https://www.nytimes.com/2022/12/13/briefing/morocco-world-cup.html
 
 
 
