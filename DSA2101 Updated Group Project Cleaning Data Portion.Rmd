@@ -39,9 +39,8 @@ library(ggrepel)
 Firstly, we read in the two datasets using the `readr` package.
 
 ```{r Reading Data, warning = FALSE, message = FALSE}
-tuesdata <- tidytuesdayR::tt_load('2022-11-29')
-wcmatches <- tuesdata$wcmatches
-worldcups <- tuesdata$worldcups
+wcmatches <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/wcmatches.csv')
+worldcups <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-29/worldcups.csv')
 ```
 
 ## Data Cleaning
@@ -346,13 +345,14 @@ wc_win_prop_combine <- home_matches_played %>%
 # Plotting
 ggplot(data = wc_win_prop_combine, aes(x = host_win_prop, y = away_wins_prop)) +
   geom_point() +
-  geom_text_repel(aes(label = country), hjust = -0.05, vjust = -0.05, size = 3) +
+  geom_text(aes(label = country), hjust = -0.15, vjust = -0.1, size = 3) +
   ylim(0, 80) +
   geom_abline(color = 'red', linetype = 2) +
   labs(title = 'Host Country Performance VS when Away',
        x = "Proportion of Wins at Home",
        y = "Proportion of Wins not at Home (Away)") +
   theme_minimal() +
+  scale_x_continuous(limits = c(0, 110), breaks = seq(0, 100, 20)) + 
   theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
 
