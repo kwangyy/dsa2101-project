@@ -119,7 +119,6 @@ wcmatches_tidy <- wcmatches %>%
     penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)
   )
 
-wcmatches_tidy
 ```
 
 There are a few interesting statistics that we have found out with the datasets:
@@ -143,8 +142,15 @@ missing_years
 ```
 
 ``` {r Statistic 2}
+# Stages for 1934
 stages_1934 <- wcmatches_tidy %>% 
   filter(year == 1934) %>%
+  select(stage_status) %>%
+  distinct()
+
+# Stages for 1938
+stages_1938 <- wcmatches_tidy %>% 
+  filter(year == 1938) %>%
   select(stage_status) %>%
   distinct()
 
@@ -154,14 +160,8 @@ stages_1950 <- wcmatches_tidy %>%
   distinct()
 
 stages_1934
-stages_1950
-
-stages_1938 <- wcmatches_tidy %>% 
-  filter(year == 1938) %>%
-  select(stage_status) %>%
-  distinct()
-
 stages_1938
+stages_1950
 ```
 These are all in preparation to answer the question: **What factors affect the performance of the World Cup?**
 
@@ -172,6 +172,7 @@ To answer our question, we prepared three visualisations: a heatmap, a scatterpl
 We want to see if geographical factors affect the performance of the World Cup. Therefore, we manipulated the data to tabulate the all-time total points for each country, before showcasing the total points across all World Cup matches on a heatmap. A heatmap, in this case, is good to show intensity in data through the use of a blue colour gradient which signifies the surplus of points earned throughout the World Cups. From there, we can see that South America and Europe usually dominate the World Cups, with Germany and Brazil scoring most of the points.
 
 ```{r Heatmap Preparation}
+# Calculate win / lose points
 wcmatches_wins <- wcmatches_updated %>%
   filter(win_outcome %in% c("Home", "Away")) %>%
   group_by(country = case_when(win_outcome == "Home" ~ home_team, win_outcome == "Away" ~ away_team)) %>%
