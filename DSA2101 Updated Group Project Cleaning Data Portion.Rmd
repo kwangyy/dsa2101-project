@@ -263,9 +263,9 @@ wcmatches_tidy1 <- wcmatches_tidy %>%
 # Win Proportion out of matches played
 wc_host_wins_prop <- wc_host_matches_played %>%
   full_join(wcmatches_tidy1) %>%
-  mutate(host_win_proportion = round(host_wins*100/total_matches_played, 2))
+  mutate(host_win_prop = round(host_wins*100/total_matches_played, 2))
 
-# Wins when country is away
+# Wins when country is not host
 wc_away_wins <- wcmatches_tidy %>%
   group_by(winning_team) %>%
   summarise(total_wins = n()) %>%
@@ -296,10 +296,11 @@ wc_win_prop_combine <- home_matches_played %>%
   mutate(total_played = home_played + away_played) %>%
   group_by(country) %>%
   summarise(away_wins_prop = round(away_wins*100/total_played,2)) %>%
-  right_join(wc_host_wins, by = 'country')
-wc_win_prop_combine
+  right_join(wc_host_wins_prop, by = 'country') %>%
+  select(country, host_win_prop, away_wins_prop)
+
 # Plotting
-ggplot(data = wc_win_prop_combine, aes(x = host_win, y= away_wins_prop))+
+ggplot(data = wc_win_prop_combine, aes(x = host_win_prop, y= away_wins_prop))+
   geom_point()+
   geom_text_repel(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
   ylim(0,80)+
