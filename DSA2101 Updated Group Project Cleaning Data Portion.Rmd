@@ -359,12 +359,7 @@ ggplot(data=wc_goals_scored, aes(x=year, y=avg_goals_per_match, group = stage_st
 # Discussion
 From the guidelines (1-2 paragraphs): Describe the primary insights you aim to convey through your visualizations. Explore and explain why the data appears the way it does.
 
-Through our visualisations, we aim to provide insights into the different factors that may affect a country's performance at the World Cup. Various factors include the continent of the country and whether the country has been a host in the World Cup. 
-From our first visualisation (heatmap), we can observe that the most successful nations at the World Cup throughout its history are generally from Europe and South America. This is represented by the orange and red fill colours of the countries in Europe and South America (e.g. Brazil, Italy, Germany) where the total points obtained are higher. Countries in other continents (North America, Asia, Africa and Oceania) have lighter shades of orange and yellow, where the total points obtained are lower. A possible reason for the better performance in European and South American countries is that football might be the primary sport for these nations and more players from Europe and South America have been training hard in football for many years. Due to the long history of these countries in football, their skill level in football is generally higher and there is a higher probability that European and South American countries will perform better in the World Cup, leading to higher points. Another trend observed from the heatmap is that for South America and Europe, almost all nations have participated in the World Cup (have a certain fixed colour) but for the other continents, many nations have not participated in the World Cup (a lot of countries that are filled white). A possibility is that since Europe and South America have better teams, they deserve more berths and are allocated more slots to the confederation (Lopez, 2022).
-
-From our second visualisation (scatterplot), we can observe that 
-
-From our third visualisation (lineplot), we can observe that
+The primary insights we aim to convey through our visualisations are the different factors that might affect nations' World Cup performances. Most of the visualisations appear as such because of the nature of the World Cup - it eliminates the weaker nations early during the Group Stages and the stronger nations compete against each other to earn the biggest honor for a country's football team, explaining the heat map of total points. As the World Cup progresses, the matches get more intense as nations are one step closer to the ultimate trophy, and explains why countries score better during non-group stages.
 
 
 # References
