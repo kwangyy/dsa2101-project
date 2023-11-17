@@ -325,54 +325,24 @@ Firstly, we tabulate the proportion won by the host country by finding the ratio
 To conclude, there is a positive relation between proportion of wins at home and proportion of wins when away. Countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
 
 ```{r Scatter}
-# Group stage matches
-wc_groupstage_matches <- wcmatches_tidy %>%
-  filter(stage_status == 'Group Stage', country == home_team) %>%
-  group_by(year, country) %>%
-  summarise(group_stage_matches_played = n())
-
-# Knockout stage, non-1950
-wc_elimstage_matches <- wcmatches_tidy %>%
-  filter(year != '1950', stage_status != 'Group Stage') %>%
-  group_by(year, country) %>%
-  summarise(elim_matches_played = n_distinct(stage_status))
-
-# Knockout stage, 1950
-wc_elimstage_matches1 <- wcmatches_tidy %>%
-  filter(year == '1950', stage_status != 'Group Stage', country == home_team) %>%
-  group_by(year, country) %>%
-  summarise(elim_matches_played = n()) %>%
-  bind_rows(wc_elimstage_matches)
-
-# Merge group stage and knockout stage
-wc_total_matches <- wcmatches_tidy%>%
-  group_by(winning_team)%>%
-  summarise(total_win = n())%>%
-  rename('country' = 'winning_team')
-
 # Total matches played per host country
 wc_host_matches_played <- wcmatches_tidy %>%
   filter(country == home_team) %>%
   group_by(country) %>%
   summarise(total_matches_played = n())
 
-# Proportion out of matches played
-wc_host_wins_prop <- wc_host_matches_played %>%
-  full_join(wcmatches_tidy1) %>%
-  mutate(host_win_proportion = round(host_wins*100/total_matches_played, 2))
-
-# Proportion out of total possible
+# Toal wins per host country
 wcmatches_tidy1 <- wcmatches_tidy %>%
   filter(country == home_team, country == winning_team) %>%
   select(year, country, stage_status, home_team, win_outcome) %>%
   group_by(country) %>%
   summarise(host_wins = n())
 
-wc_host_wins <- wcmatches_tidy1 %>%
-  left_join(wc_total_matches, by = 'country') %>%
-  group_by(country) %>%
-  summarise(host_win = round(host_wins * 100 / total_win, 2)) %>%
-  replace_na(list(proportion_win = 0))
+# Win Proportion out of matches played
+wc_host_wins_prop <- wc_host_matches_played %>%
+  full_join(wcmatches_tidy1) %>%
+  mutate(host_win_proportion = round(host_wins*100/total_matches_played, 2))
+
 
 # Wins when country is not host
 wc_not_host_wins <- wcmatches_tidy %>%
@@ -407,31 +377,6 @@ wc_win_prop_combine <- home_matches_played %>%
   summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
   right_join(wc_host_wins, by = 'country')
 
-
-wcmatches_tidy3 <- wcmatches_tidy%>%
-  group_by(winning_team)%>%
-  select(year,country,stage_status,away_team,win_outcome,winning_team)%>%
-  summarise(actual_win = n())%>%
-  left_join(wcmatches_tidy2, by = c('winning_team' = 'country'))%>%
-  na.omit()%>%
-  mutate(away_win = actual_win - matches_won_hometeam ) %>%
-  left_join(wcmatches_tidy1, by = c('winning_team' = 'country'))%>%
-  mutate(proportion_away_win = round(away_win/actual_win * 100,2))%>%
-  select(winning_team, proportion_away_win)
-
-combine_data <- wcmatches_tidy3%>%
-  left_join(wcmatches_tidy1, by =c('winning_team'= 'country'))
-
-
-ggplot(data = combine_data, aes(x = proportion_away_win, y = host_wins))+
-  geom_point()+
-  geom_text(aes(label = winning_team), hjust= 0.5,vjust = -0.5,angle = 0,size = 3) +
-  ylim(0,110)+
-  geom_abline(color = 'red',linetype=2) +
-  labs(title = 'Host Country Performance VS when Away',
-       x = "Proportion of Win when Away",
-       y = "Proportion of Win at Home")+
-  theme_minimal()
 
 wcmatches_away <- wcmatches_tidy %>%
   filter(stage_status == 'Group Stage')%>%
@@ -483,7 +428,7 @@ ggplot(data = combine_data, aes(x = proportion_win_away, y = host_wins)) +
 
 ggplot(data = wc_win_prop_combine, aes(y= not_host_wins_prop,x = host_win))+
   geom_point()+
-  geom_text(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
+  geom_text_repel(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
   ylim(0,80)+
   geom_abline(color = 'red', linetype = 2) +
   labs(title = 'Host Country Performance VS when Away',
