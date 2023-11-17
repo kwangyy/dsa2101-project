@@ -126,7 +126,7 @@ There are a few interesting statistics that we have found out with the datasets:
 
 1. The years 1942 and 1946 are not included in the dataset. Upon further research, we realise that the World Cup was not held in 1942 and 1946 due to the Second World War (Marcotti, 2014). This leads to a larger year difference of 12 years between the 1938 and the 1950 World Cup matches, which will be reflected in some of our plots.
 
-2. The years 1934 and 1950 had a very different format, unlike traditional World Cups (Topend Sports, n.d.). A traditional World Cup often consists of the Group Stages, Round of 16, Quarterfinals, Semifinals and Finals. Typically, matches after the group stages were played in a knockout format, i.e. the winning team will continue, while the losing team was eliminated. However, in 1934, there were no group stages, while in 1950, the stages after the group stages were considered "Finals" and played just like group stages instead of the aforementioned knockout format.
+2. The years 1934, 1938 and 1950 had a very different format, unlike traditional World Cups (Topend Sports, n.d.). A traditional World Cup often consists of the Group Stages, Round of 16, Quarterfinals, Semifinals and Finals. Typically, matches after the group stages were played in a knockout format, i.e. the winning team will continue, while the losing team was eliminated. However, in 1934 and 1938, there were no group stages, while in 1950, the stages after the group stages were considered "Finals" and played just like group stages instead of the aforementioned knockout format. This will be reflected in some of our plots as well. 
 
 ``` {r Statistic 1}
 # The years where the World Cup is supposed to be held on
@@ -155,12 +155,18 @@ stages_1950 <- wcmatches_tidy %>%
 
 stages_1934
 stages_1950
+
+stages_1938 <- wcmatches_tidy %>% 
+  filter(year == 1938) %>%
+  select(stage_status) %>%
+  distinct()
+
+stages_1938
 ```
 These are all in preparation to answer the question: **What factors affect the performance of the World Cup?**
 
-To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
-
 # Visualisations
+To answer our question, we prepared three visualisations: a heatmap, a scatterplot and a line plot.
 
 ## Visualisation 1: Heatmap
 We want to see if geographical factors affect the performance of the World Cup. Therefore, we manipulated the data to tabulate the all-time total points for each country, before showcasing the total points across all World Cup matches on a heatmap. A heatmap, in this case, is good to show intensity in data through the use of a blue colour gradient which signifies the surplus of points earned throughout the World Cups. From there, we can see that South America and Europe usually dominate the World Cups, with Germany and Brazil scoring most of the points.
@@ -238,7 +244,7 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
 ```
 
 ## Visualisation 2: Scatter Plot
-We want to investigate whether home country advantage is a factor in winning the World Cup. To do this, we manipulate the data to get the proportion of games a country wins when they are the host of the World Cup against when they are not the host, which are then plotted on the scatter plot. The scatter plot allows us to see the relationship between two continuous variables (in this case, the proportions of home vs away games). Moreover, it allows us to plot a regression, which in this case shows that countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
+We want to investigate whether home country advantage is a factor in winning the World Cup. To do this, we manipulate the data to get the proportion of games a country wins when they are the host of the World Cup against when they are not the host, which are then plotted on the scatter plot. The scatter plot allows us to see the relationship between two continuous variables (in this case, the proportions of home vs away games). Moreover, it allows us to plot a regression, which in this case shows that countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins away (70.83%) while Russia has the highest proportion of wins when away (60%).
 
 ```{r Scatter, warning = FALSE, message = FALSE}
 # Total matches played per host country
@@ -291,7 +297,7 @@ wc_win_prop_combine <- home_matches_played %>%
   group_by(country) %>%
   summarise(away_wins_prop = round(away_wins*100/total_played,2)) %>%
   right_join(wc_host_wins, by = 'country')
-
+wc_win_prop_combine
 # Plotting
 ggplot(data = wc_win_prop_combine, aes(x = host_win, y= away_wins_prop))+
   geom_point()+
@@ -306,11 +312,7 @@ ggplot(data = wc_win_prop_combine, aes(x = host_win, y= away_wins_prop))+
 ```
 
 ## Visualisation 3: Line Plot
-Lastly, we want to find whether or not the progress of the world cup affects whether or not a country performs well in the world cup. 
-
-First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets.
-
-Afterwards, we join the `viz_3_wcmatches` and `viz_3_worldcups` dataset together by year and afterwards, calculate the proportion of goals that the host countries have scored during their runs. Lastly, we create a line plot for the proportion of goals that the host countries have scored during their runs for the respective years using geom_line. As mentioned above, the years 1942 and 1946 are not included and we simply connect the 1938 proportion and the 1950 proportion together using a straight line.
+Lastly, we want to find whether or not the different stages affects whether or not a country performs well in the world cup. We get the average goals for the group stages and non-group stages for each world cup and plot it using a line plot. The line plot allows us to see the changes in average goals over each world cup. Moreover, we are able to plot more than one line plot to see how the average goals change when it is during a group stage, and when it is not during a group stage. Generally, countries tend to score better during the non-group stage matches, with 73.7% of World Cups demonstrating this trend (with the exception of 1934 and 1938).
 
 ```{r Line Plot 3a, warning = FALSE, message = FALSE}
 viz_3_wcmatches <- wcmatches_tidy %>% 
@@ -343,8 +345,13 @@ ggplot(data=wc_goals_scored, aes(x=year, y=avg_goals_per_match, group = stage_st
   labs(title = "Do countries score better in group stages or non-group stages?",
        subtitle = "Comparing average goals for group stage vs non-group stage",
        x = "Year",
-       y = "Average Goals / Match") +
-  geom_point()
+       y = "Average Goals / Match", 
+       color = "Stage Status") +
+  geom_point(size = 2) +
+  scale_x_continuous(breaks = seq(1930, 2018, by = 8)) + 
+  theme_minimal() + 
+  theme(legend.position = c(0.9, 0.9))
+
 ```
 
 # Discussion
@@ -368,6 +375,7 @@ FIFA World Cup Formats. (n.d.). Topend Sports. Retrieved 17 November 2023, from 
 USA ’94: A World Cup of firsts. (2016, May 4). FIFA Museum. https://www.fifamuseum.com/en/blog-stories/blog/usa-94-a-15th-world-cup-full-of-firsts-2610677/
 
 Lopez, G. (2022, December 13). The power of history. The New York Times. https://www.nytimes.com/2022/12/13/briefing/morocco-world-cup.html
+
 
 
 
