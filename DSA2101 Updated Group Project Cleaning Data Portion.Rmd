@@ -44,55 +44,16 @@ wcmatches <- tuesdata$wcmatches
 worldcups <- tuesdata$worldcups
 ```
 
-## Summary Statistics
-
-Here is a description of the variables from the two datasets relevant to our analysis:
-
-### `wcmatches`
-
-|variable     |class     |description |
-|:---|:---|:--------------------|
-|year          |double    | The year in which the tournament was held. |
-|country       |character | The host of that year's tournament. |
-|stage         |character | The stage of the match in the tournament. For group stage matches, the group that the teams are playing in is clearly mentioned. |
-|home_team     |character | The team assigned as the home team, playing against the away team. |
-|away_team     |character | The team assigned as the away team, playing against the home team. |
-|home_score    |double    | The number of goals scored by the home team. |
-|away_score    |double    | The number of goals scored by the away team. |
-|outcome       |character | The outcome of the game, `H` denotes a home win, `A` denotes an away win and `D` denotes a draw between the two teams. |
-|win_conditions|character | To indicate special cases of winning a match in knockout stage matches, i.e. winning in extra time or winning on penalties. |
-|winning_team  |character | The team that won the match, including in extra time or on penalties. `NA` denotes the match ending up in a draw. |
-|losing_team   |character | The team that lost the match, including in extra time or on penalties. `NA` denotes the match ending up in a draw. |
-
-### `worldcups`
-
-|variable     |class     |description |
-|:---|:---|:--------------------|
-|year          |double    | The year in which the tournament was held. |
-|host          |character | The host of that year's tournament, same as `country` in `wcmatches` dataset. |
-|winner        |character | The winning team of that year's tournament. |
-|second        |character | The second-placed team of that year's tournament. |
-|third         |character | The third-placed team of that year's tournament. |
-|fourth        |character | The fourth-placed team of that year's tournament. |
-|goals_scored  |double    | The total number of goals scored throughout the tournament. |
-|teams         |double    | The number of national teams participated in the tournament. |
-
-
 ## Data Cleaning
 
 We performed data cleaning on both datasets. We start with the `worldcups` dataset by using the `pivot_longer` function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (`americas`), Europe (`europe`), and the rest of the world (`others`) for future visualization.
 
 For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
 
+Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in preparation for our heatmap using `map_data("world")` from the `maps` package (in Part 2).
+
 ```{r Data Cleaning for `worldcups.csv`}
 # Code block for the worldcups dataset
-
-# Define different continents
-americas <- c("Uruguay", "Brazil", "Chile", "Mexico", "Argentina", "United States")
-
-europe <- c("Italy", "France", "Switzerland", "Sweden", "England", "Germany", "Spain", "West Germany", "Netherlands", "Austria", "Belgium", "Croatia", "Czechoslovakia", "Hungary", "Poland", "Portugal", "Yugoslavia", "Bulgaria", "Soviet Union", "Turkey", "Russia")
-
-others <- c("South Africa", "Japan", "South Korea", "Japan, South Korea")
 
 # Transform the 'worldcups' data frame using pivot_longer
 worldcups_tidy <- worldcups %>%
@@ -105,21 +66,7 @@ worldcups_tidy <- worldcups %>%
   mutate(
     host_country = ifelse(host_country == "USA", "United States", host_country), 
     country_name = ifelse(country_name == "USA", "United States", country_name)
-  ) %>%
-  
-  # Create new columns for host and country continents
-  mutate(
-    host_continent = case_when(
-      host_country %in% americas ~ "Americas", 
-      host_country %in% europe ~ "Europe",
-      host_country %in% others ~ "Rest Of World"
-    ), 
-    country_continent = case_when(
-      country_name %in% americas ~ "Americas", 
-      country_name %in% europe ~ "Europe",
-      country_name %in% others ~ "Rest Of World"
-    )
-  )
+  ) 
 ```
 
 
@@ -139,25 +86,40 @@ wcmatches_tidy <- wcmatches %>%
   # Remove the 'date' column
   select(-date) %>%
   
-  # Categorize win outcomes for clear representation
+
   mutate(
+    # Categorize win outcomes for clear representation
     win_outcome = case_when(
       home_score == away_score ~ "Draw",
       win_outcome == "H" ~ "Home",
       win_outcome == "D" ~ "Draw",
       win_outcome == "A" ~ "Away"
-    )
+    ),
+    # Clean countries up
+    country = case_when(
+      country %in% c("West Germany", "East Germany") ~ "Germany",
+      country %in% c("Soviet Union") ~ "Russia",
+      country %in% c("Yugoslavia", "FR Yugoslavia") ~ "Serbia",
+      country %in% c("Czechoslovakia") ~ "Czech Republic",
+      country %in% c("Dutch West Indies") ~ "Indonesia",
+      country %in% c("Zaire") ~ "Democratic Republic of the Congo",
+      TRUE ~ country)
   ) %>%
   
-  # Feature engineering: Calculate score difference and handle missing values
+  # Feature engineering
   mutate(
+    # Calculate score difference
     score_difference = abs(home_score - away_score), 
+    
+    # Handle missing win conditions
     win_conditions = replace_na(win_conditions, "Nil"),
     
     # Create binary features based on win conditions
     after_extra_time = ifelse(str_detect(win_conditions, "AET"), 1, 0), 
     penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)
   )
+
+wcmatches_tidy
 ```
 
 There are a few interesting statistics that we have found out with the datasets:
@@ -201,31 +163,9 @@ To answer our question, we prepared three visualisations: a heatmap, a scatterpl
 # Visualisations
 
 ## Visualisation 1: Heatmap
-We want to create a heatmap showcasing the total points across all World Cup matches for every country. We will split this process into two parts:
-
-1. Preparing the data to tabulate the all-time total points for each country.
-
-2. Visualising the total points obtained on a heatmap.
-
-### Part 1: Preparing the Data
-
-As per FIFA convention, for each match, we award 3 points to the winning team, 0 points to the losing team and 1 point to both teams if it ends in a draw. There are certain exceptions to the point allocation for the countries:
-
-- For knockout stage matches where one team wins in extra time, we award 3 points to the winning team and 0 points to the losing team. `after_extra_time` does not affect the victory/loss of the teams.
-
-- For knockout stage matches that end in penalty shootouts, we award 1 point to both teams as we consider it a draw. The outcome of the penalty shootout does not affect the points.
-
-We focused on rectifying the exceptions as mentioned above, and tabulate the points obtained by each country from the number of wins and draws for each country over time. We also want to ensure that all teams that participated in the World Cup at least once are included in the merged dataset, as some countries may have failed to obtain any points (e.g. China in 2002). This is for us to differentiate between the latter (represented by light yellow, `#ffffb2` in the heatmap) and countries that have never participated in the World Cup before (represented by `grey` in the heatmap).
-
-Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in preparation for our heatmap using `map_data("world")` from the `maps` package (in Part 2).
+We want to see if geographical factors affect the performance of the World Cup. Therefore, we manipulated the data to tabulate the all-time total points for each country, before showcasing the total points across all World Cup matches on a heatmap. A heatmap, in this case, is good to show intensity in data through the use of a blue colour gradient which signifies the surplus of points earned throughout the World Cups. From there, we can see that South America and Europe usually dominate the World Cups, with Germany and Brazil scoring most of the points.
 
 ```{r Heatmap Preparation}
-# Update win_outcome
-wcmatches_updated <- wcmatches_tidy %>%
-  mutate(win_outcome = ifelse(penalties == 1, "Draw", win_outcome)) %>%
-  select(home_team, away_team, win_outcome)
-
-# Calculate win points
 wcmatches_wins <- wcmatches_updated %>%
   filter(win_outcome %in% c("Home", "Away")) %>%
   group_by(country = case_when(win_outcome == "Home" ~ home_team, win_outcome == "Away" ~ away_team)) %>%
@@ -259,28 +199,14 @@ wcmatches_tabulated <- wcmatches_wins %>%
     win_points = replace_na(win_points, 0),
     draw_points = replace_na(draw_points, 0),
     total_points = win_points + draw_points,
-    country = case_when(
-      country %in% c("West Germany", "East Germany") ~ "Germany",
-      country %in% c("Soviet Union") ~ "Russia",
-      country %in% c("Yugoslavia", "FR Yugoslavia") ~ "Serbia",
-      country %in% c("Czechoslovakia") ~ "Czech Republic",
-      country %in% c("Dutch West Indies") ~ "Indonesia",
-      country %in% c("Zaire") ~ "Democratic Republic of the Congo",
-      TRUE ~ country)) %>%
+    ) %>%
   group_by(country) %>%
   summarise(total_points = sum(total_points))
 
-head(wcmatches_tabulated)
-```
 
+#Part 2: Visualising `total_points` on a heatmap
 
-### Part 2: Visualising `total_points` on a heatmap
-
-We now visualise the total points obtained on a heatmap by using `map_data("world")` to get the world coordinates. We renamed some countries to match those in the `wcmatches_tabulated` dataset. For example, the United Kingdom consisting of Scotland, Great Britain, Isle of Wight, Wales and Northern Ireland should be separated into their subregions.
-
-Next, we do a full join on the `world_map` dataset with the `wcmatches_tabulated` dataset, as we want to include countries that never participated in the World Cup in our map. All countries in `wcmatches_tabulated` exist in the `region` column of the `world_map` dataset. Lastly, we use `ggplot` to generate a heatmap showcasing the total points each country obtained from World Cup matches over the years. Countries that never participated in the World Cup have a score of `NA` in the `top_countries_joined` dataset and are coloured white in the heatmap.
-
-```{r Heatmap}
+# Consistency within regions
 world_map <- map_data("world") %>%
              mutate(region = case_when(
                region == "USA" ~ "United States",
@@ -294,6 +220,7 @@ world_map <- map_data("world") %>%
                .default = region)) %>%
              select(-subregion)
 
+# Join tabulated wcmatches and top countries 
 top_countries_joined <- wcmatches_tabulated %>%
                         full_join(world_map, by = c("country" = "region"))
 
@@ -301,7 +228,7 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = total_points)) +
   labs(title = "Global Distribution of Total Points obtained across World Cups (1930-2018)") +
   scale_fill_gradientn(name = "Total Points",
-                       colors = c("#ffffb2", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026"),
+                       colors = c("#89CFF0", "#5DADE2", "#3498DB", "#2E86C1", "#1F618D"),
                        na.value = "white") +
   borders(colour = "black", size = 0.1) +
   theme_minimal() +
@@ -311,27 +238,16 @@ ggplot(top_countries_joined, aes(x = long, y = lat, group = group)) +
 ```
 
 ## Visualisation 2: Scatter Plot
+We want to investigate whether home country advantage is a factor in winning the World Cup. To do this, we manipulate the data to get the proportion of games a country wins when they are the host of the World Cup against when they are not the host, which are then plotted on the scatter plot. The scatter plot allows us to see the relationship between two continuous variables (in this case, the proportions of home vs away games). Moreover, it allows us to plot a regression, which in this case shows that countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
 
-We want to create a scatter plot to compare the proportion of games a country wins when they are the host of the World Cup against when they are not the host. We need to find 2 variables to plot the scatterplot:
-
-1. Proportion of matches won by host country of every World Cup
-
-2. Proportion of matches won by non-host countries
-
-### Part 1: Tabulating the variables
-Firstly, we tabulate the proportion won by the host country by finding the ratio of matches won to matches played by the host country every year. Secondly, we find the ratio of wins by non-host countries to their total matches played across all World Cups. A linear regression line will be plotted to display the general trend between the 2 variables. By plotting these 2 variables, we are able to visualize how being the host of the World Cup can affect the country's performance by whether the point of the countries are located below or above the linear regression line. This will allow us to predict more accurately the winner of World Cup matches depending on the host of the World Cup.
-
-### Part 2: Visualisation of graph
-To conclude, there is a positive relation between proportion of wins at home and proportion of wins when away. Countries that lie above regression line have higher proportion of wins at home while countries that lie below the regression line has higher proportion of wins when away. Brazil has the highest proportion of wins at home (70.83%) while Russia has the highest proportion of wins when away (60%).
-
-```{r Scatter}
+```{r Scatter, warning = FALSE, message = FALSE}
 # Total matches played per host country
 wc_host_matches_played <- wcmatches_tidy %>%
   filter(country == home_team) %>%
   group_by(country) %>%
   summarise(total_matches_played = n())
 
-# Toal wins per host country
+# Total wins per host country
 wcmatches_tidy1 <- wcmatches_tidy %>%
   filter(country == home_team, country == winning_team) %>%
   select(year, country, stage_status, home_team, win_outcome) %>%
@@ -343,16 +259,15 @@ wc_host_wins_prop <- wc_host_matches_played %>%
   full_join(wcmatches_tidy1) %>%
   mutate(host_win_proportion = round(host_wins*100/total_matches_played, 2))
 
-
-# Wins when country is not host
-wc_not_host_wins <- wcmatches_tidy %>%
+# Wins when country is away
+wc_away_wins <- wcmatches_tidy %>%
   group_by(winning_team) %>%
   summarise(total_wins = n()) %>%
   rename(country = winning_team) %>%
   full_join(wcmatches_tidy1) %>%
   replace_na(list(host_wins = 0)) %>%
-  mutate(not_host_wins = total_wins - host_wins) %>%
-  select(country, not_host_wins)
+  mutate(away_wins = total_wins - host_wins) %>%
+  select(country, away_wins)
 
 # Matches played as 'home_team' by non-host
 home_matches_played <- wcmatches_tidy %>%
@@ -370,78 +285,28 @@ away_matches_played <- wcmatches_tidy %>%
 #Merge all data to find proportion
 wc_win_prop_combine <- home_matches_played %>%
   full_join(away_matches_played, by = 'country') %>%
-  full_join(wc_not_host_wins, by = 'country') %>%
-  replace_na(list(not_host_wins = 0)) %>%
+  full_join(wc_away_wins, by = 'country') %>%
+  replace_na(list(away_wins = 0)) %>%
   mutate(total_played = home_played + away_played) %>%
   group_by(country) %>%
-  summarise(not_host_wins_prop = round(not_host_wins*100/total_played,2)) %>%
+  summarise(away_wins_prop = round(away_wins*100/total_played,2)) %>%
   right_join(wc_host_wins, by = 'country')
 
-
-wcmatches_away <- wcmatches_tidy %>%
-  filter(stage_status == 'Group Stage')%>%
-  filter(country != home_team)%>%
-  group_by(year, country, away_team)%>%
-  summarise(groupstage_matches = n())
-
-wc_elimstage_away <- wcmatches_tidy %>%
-  filter(year != 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year, country, away_team)%>%
-  summarize(elimstage_matches = n_distinct(stage_status))
-
-wc_elimstage_away1 <- wcmatches_tidy %>%
-  filter(year == 1950)%>%
-  filter(country != home_team)%>%
-  filter(stage_status != 'Group Stage')%>%
-  group_by(year, country, away_team)%>%
-  summarise(elimstage_matches = n())%>%
-  bind_rows(wc_elimstage_away)
-
-wc_total_matches1 <- wcmatches_away %>%
-  left_join(wc_elimstage_away1, by = c("year", "country", "away_team"))%>%
-  replace_na(list(elimstage_matches = 0))%>%
-  mutate(total_possible_matches = groupstage_matches + elimstage_matches)%>%
-  select(country, total_possible_matches)%>%
-  group_by(country)%>%
-  summarise(total_possible = sum(total_possible_matches))
-
-wcmatches_tidy2 <- wcmatches_tidy %>%
-  filter(country != home_team) %>%
-  select(year, country, stage_status, away_team, win_outcome) %>%
-  filter(win_outcome == "Away") %>%
-  group_by(year, country) %>%
-  summarise(matches_won_awayteam = n()) %>%
-  left_join(wc_total_matches1, by = 'country') %>%
-  group_by(country) %>%
-  summarise(proportion_win_away = sum(round(matches_won_awayteam * 100 / total_possible, 2)))
-
-combine_data <- wcmatches_tidy2 %>%
-  left_join(wcmatches_tidy1, by = 'country')
-
-
-ggplot(data = combine_data, aes(x = proportion_win_away, y = host_wins)) +
-  geom_point() +
-  geom_text_repel(aes(label = country), hjust = 0.5, vjust = -0.5, size = 3) + #angle = -30
-  ylim(0, 110)
-
-ggplot(data = wc_win_prop_combine, aes(y= not_host_wins_prop,x = host_win))+
+# Plotting
+ggplot(data = wc_win_prop_combine, aes(x = host_win, y= away_wins_prop))+
   geom_point()+
   geom_text_repel(aes(label = country), hjust = 0.05, vjust = -0.5,angle = 45,size = 2.5)+
   ylim(0,80)+
   geom_abline(color = 'red', linetype = 2) +
   labs(title = 'Host Country Performance VS when Away',
-       x = "Proportion of Wins when Away",
-       y = "Proportion of Wins at Home") +
+       x = "Proportion of Wins at Home",
+       y = "Proportion of Wins not at Home (Away)") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = 20))
 ```
 
-
 ## Visualisation 3: Line Plot
-
-Firstly, we want to find the proportion of goals that a host country has scored during their run. (Include why we want to visualize this) 
+Lastly, we want to find whether or not the progress of the world cup affects whether or not a country performs well in the world cup. 
 
 First, we filter for the rows of the `wcmatches_tidy` dataset where the home team is the host country. We do not consider the away team as the host country is always observed in the home team column and not the away team column of the dataset. We group the observations by year before calculating the number of goals scored by the host country for each year. Next, for the `worldcups_tidy` dataset, we similarly group each observation by year and calculate the number of goals_scored for each year (for the host country) for all matches. Next, we rename the host_country column of the dataset to country for easier joining of datasets.
 
@@ -465,18 +330,6 @@ viz_3_data <- viz_3_wcmatches %>%
   mutate(goal_proportion = (total_goals_scored / goals_scored) * 100) %>%
   select(year, country, goal_proportion)
 
-ggplot(data = viz_3_data, aes(x = year, y = goal_proportion)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2.5) +
-  scale_x_continuous(breaks = seq(1930, 2018, 8)) +
-  scale_y_continuous(labels = scales::label_number(suffix = "%")) +
-  labs(title = "Proportion of Goals scored by Host Countries (1930-2018)",
-       subtitle = "Goals scored by host country as a percentage of total goals scored",
-       x = "Year", y = "Proportion of Goals Scored") +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5))
-
-
 wc_goals_scored <- wcmatches_tidy  %>%
   select(year, stage_status, home_score, away_score) %>%
   mutate(total_scored = home_score + away_score) %>%
@@ -486,7 +339,11 @@ wc_goals_scored <- wcmatches_tidy  %>%
   mutate(avg_goals_per_match = total_goals/total_matches)
 
 ggplot(data=wc_goals_scored, aes(x=year, y=avg_goals_per_match, group = stage_status, color = stage_status)) +
-  geom_line() +
+  geom_line() + 
+  labs(title = "Do countries score better in group stages or non-group stages?",
+       subtitle = "Comparing average goals for group stage vs non-group stage",
+       x = "Year",
+       y = "Average Goals / Match") +
   geom_point()
 ```
 
