@@ -48,9 +48,6 @@ worldcups <- tuesdata$worldcups
 
 We performed data cleaning on both datasets. We start with the `worldcups` dataset by using the `pivot_longer` function to consolidate the columns from `winner` to `fourth` into the `position_status` column. We standardized "USA" to "United States" and introduced a new `continent` feature, categorizing countries into three groups: North and South America (`americas`), Europe (`europe`), and the rest of the world (`others`) for future visualization.
 
-For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`.
-
-Some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in preparation for our heatmap using `map_data("world")` from the `maps` package (in Part 2).
 
 ```{r Data Cleaning for `worldcups.csv`}
 # Code block for the worldcups dataset
@@ -70,6 +67,7 @@ worldcups_tidy <- worldcups %>%
 ```
 
 
+For the `wcmatches` dataset, we refined column names from `stage` to `stage_status` and `outcome` to `win_outcome`. We realised that `stage_status` did not have consistent values amongst the Group Stage and Finals, and converted `Group` to `Group Stage` and `Final Round` to `Final` for consistency. We removed the `date` column, and cleaned up the columns denoting the wins by expanding the `win_outcome` column to represent Home, Draw and Away and filled missing values in `win_conditions` with `Nil`. Lastly, we featured engineer the score difference as well as the win conditions, creating two new features `after_extra_time` and `penalties`. Additionally, some former teams like the Soviet Union and Yugoslavia were renamed to their present-day countries in preparation for our heatmap using `map_data("world")` from the `maps` package (in Part 2).
 ```{r Data Cleaning for `wcmatches.csv`}
 # Code block for the wcmatches dataset 
 
@@ -173,19 +171,21 @@ We want to see if geographical factors affect the performance of the World Cup. 
 
 ```{r Heatmap Preparation}
 # Calculate win / lose points
-wcmatches_wins <- wcmatches_updated %>%
+wcmatches_wins <- wcmatches_tidy %>%
   filter(win_outcome %in% c("Home", "Away")) %>%
   group_by(country = case_when(win_outcome == "Home" ~ home_team, win_outcome == "Away" ~ away_team)) %>%
   summarise(win_points = 3 * n())
 
 # Calculate draw points
-wcmatches_draws <- wcmatches_updated %>%
+wcmatches_draws <- wcmatches_tidy %>%
   filter(win_outcome == "Draw") %>%
   pivot_longer(home_team:away_team) %>%
-  rename(country = value) %>%
-  select(country) %>%
-  group_by(country) %>%
-  summarise(draw_points = n())
+  rename(country_draw = value) %>%
+  select(country_draw) %>%
+  group_by(country_draw) %>%
+  summarise(draw_points = n()) %>%
+  rename(country = country_draw)
+
 
 # Get unique home and away countries
 wcmatches_allcountries <- wcmatches_tidy %>%
