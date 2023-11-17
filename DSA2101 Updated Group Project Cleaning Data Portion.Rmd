@@ -71,20 +71,25 @@ For the `wcmatches` dataset, we refined column names from `stage` to `stage_stat
 ```{r Data Cleaning for `wcmatches.csv`}
 # Code block for the wcmatches dataset 
 
+country_replacer <- function(x) {case_when(
+      x %in% c("West Germany", "East Germany") ~ "Germany",
+      x %in% c("Soviet Union") ~ "Russia",
+      x %in% c("Yugoslavia", "FR Yugoslavia") ~ "Serbia",
+      x %in% c("Czechoslovakia") ~ "Czech Republic",
+      x %in% c("Dutch West Indies") ~ "Indonesia",
+      x %in% c("Zaire") ~ "Democratic Republic of the Congo",
+      TRUE ~ x)}
+
 # Rename columns for clarity
 wcmatches_tidy <- wcmatches %>%
   rename(stage_status = stage, win_outcome = outcome) %>%
-  
   # Standardize values in the 'stage_status' column
   mutate(
     stage_status = ifelse(str_detect(stage_status, "Group"), "Group Stage", stage_status), 
     stage_status = ifelse(stage_status == "Final Round", "Final", stage_status)
   ) %>%
-  
   # Remove the 'date' column
   select(-date) %>%
-  
-
   mutate(
     # Categorize win outcomes for clear representation
     win_outcome = case_when(
@@ -94,14 +99,11 @@ wcmatches_tidy <- wcmatches %>%
       win_outcome == "A" ~ "Away"
     ),
     # Clean countries up
-    country = case_when(
-      country %in% c("West Germany", "East Germany") ~ "Germany",
-      country %in% c("Soviet Union") ~ "Russia",
-      country %in% c("Yugoslavia", "FR Yugoslavia") ~ "Serbia",
-      country %in% c("Czechoslovakia") ~ "Czech Republic",
-      country %in% c("Dutch West Indies") ~ "Indonesia",
-      country %in% c("Zaire") ~ "Democratic Republic of the Congo",
-      TRUE ~ country)
+    country = country_replacer(country),
+    winning_team = country_replacer(winning_team),
+    home_team = country_replacer(home_team),
+    away_team = country_replacer(away_team)
+    
   ) %>%
   
   # Feature engineering
@@ -117,6 +119,8 @@ wcmatches_tidy <- wcmatches %>%
     penalties = ifelse(str_detect(win_conditions, "penalties"), 1, 0)
   )
 
+wcmatches_tidy %>% filter(country == "Germany")
+worldcups_tidy
 ```
 
 There are a few interesting statistics that we have found out with the datasets:
@@ -161,6 +165,45 @@ stages_1934
 stages_1938
 stages_1950
 ```
+Lastly, here are some descriptive statistics that will help understand some of these plots better:
+```{r}
+# Total number of World Cups
+total_world_cups <- wcmatches_tidy %>%
+  distinct(year) %>%
+  summarize(total_world_cups = n())
+
+# Total games played so far
+total_games_played <- worldcups_tidy %>% 
+  select(games) %>% 
+  summarize(total_games_played = sum(games))
+
+# Number of teams that have participated throughout the world cup
+total_teams_participated <- wcmatches_tidy %>%
+  select(home_team) %>%
+  distinct() %>%
+  rename(country = home_team) %>%
+  bind_rows(wcmatches_tidy %>%
+              select(away_team) %>%
+              distinct() %>%
+              rename(country = away_team)) %>%
+  distinct() %>%
+  summarize(total_teams_participated = n())
+
+# Number of max goals scored by a host
+max_goals_home <- wcmatches_tidy %>% 
+  select(home_score) %>% 
+  summarize(max_goals_home = max(home_score))
+
+# Biggest difference between two countries
+max_difference <- wcmatches_tidy %>% 
+  select(score_difference) %>% 
+  summarize(max_difference = max(score_difference))
+
+descriptive_statistics <- bind_cols(total_world_cups, total_games_played, total_teams_participated, max_goals_home, max_difference)
+
+descriptive_statistics
+```
+
 These are all in preparation to answer the question: **What factors affect the performance of the World Cup?**
 
 # Visualisations
